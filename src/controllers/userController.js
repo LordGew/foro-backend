@@ -1,4 +1,3 @@
-// userController.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
@@ -44,7 +43,6 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     
-    // Aseguramos que userId sea string
     const token = jwt.sign({ 
       userId: user._id.toString(), 
       role: user.role 
@@ -57,7 +55,7 @@ const login = async (req, res) => {
         username: user.username, 
         role: user.role,
         xp: user.xp,
-        profileImage: user.profileImage
+        profileImage: user.profileImage ? `/uploads/profiles/${user.profileImage}` : 'https://via.placeholder.com/40'
       } 
     });
   } catch (err) {
@@ -181,7 +179,10 @@ const getUserProfile = async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
     
-    res.json(user);
+    res.json({
+      ...user.toObject(),
+      profileImage: user.profileImage ? `/uploads/profiles/${user.profileImage}` : 'https://via.placeholder.com/40'
+    });
   } catch (err) {
     console.error('Error al obtener perfil:', err);
     res.status(500).json({ message: 'Error interno del servidor', error: err.message });
@@ -222,7 +223,6 @@ const updatePassword = async (req, res) => {
   }
 };
 
-// NUEVO: Controlador para actualizar foto de perfil
 const updateProfileImage = async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -232,7 +232,6 @@ const updateProfileImage = async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    // Si hay una imagen anterior, eliminarla
     if (user.profileImage) {
       const oldImagePath = path.join('public/uploads/profiles', user.profileImage);
       if (fs.existsSync(oldImagePath)) {
@@ -240,7 +239,6 @@ const updateProfileImage = async (req, res) => {
       }
     }
 
-    // Actualizar la imagen del perfil
     user.profileImage = req.file.filename;
     await user.save();
 

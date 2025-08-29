@@ -314,7 +314,10 @@ const likePost = async (req, res) => {
     if (!post) return res.status(404).json({ message: 'Post no encontrado' });
 
     const userId = req.user.userId;
-    const index = post.likes.indexOf(userId);
+
+    // Removed self-like prevention to allow liking own posts
+
+    const index = post.likes.findIndex(like => like.toString() === userId);
     
     if (index === -1) {
       // Agregar like

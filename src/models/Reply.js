@@ -1,4 +1,3 @@
-// Reply.js
 const mongoose = require('mongoose');
 
 const ReplySchema = new mongoose.Schema({
