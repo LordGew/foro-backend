@@ -1,54 +1,80 @@
-// src/middlewares/authMiddleware.js
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const mongoose = require('mongoose');
 
-module.exports = (req, res, next) => {
-  // Intenta obtener el token de diferentes lugares
-  let token = req.header('Authorization');
+module.exports = async (req, res, next) => {
+  // Obtener token del header Authorization
+  const authHeader = req.header('Authorization');
+  let token = null;
   
-  // 1. Verifica en el header Authorization
-  if (token && token.startsWith('Bearer ')) {
-    token = token.slice(7, token.length);
-  } 
-  // 2. Verifica en cookies si no está en el header
-  else if (req.cookies && req.cookies.token) {
-    token = req.cookies.token;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7).trim(); // Añade trim() para limpiar espacios
   }
-  // 3. Verifica en el body para métodos como POST/PUT
-  else if (req.body && req.body.token) {
-    token = req.body.token;
-  }
+
+  // Log para depuración
+  console.log('Token recibido:', token ? `${token.substring(0, 20)}...` : 'null');
 
   if (!token) {
-    console.log('No se proporcionó token');
-    return res.status(401).json({ message: 'No token provided' });
+    return res.status(401).json({ 
+      message: 'No token provided',
+      error: 'no_token'
+    });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('Token decodificado correctamente:', decoded);
     
-    // Asegúrate de que userId esté presente
+    // Log para depuración
+    console.log('Token decodificado:', decoded);
+    
     if (!decoded.userId) {
-      console.error('Token decodificado sin userId:', decoded);
       return res.status(401).json({ 
-        message: 'Token inválido: falta userId' 
+        message: 'Token inválido: falta userId',
+        error: 'invalid_token'
+      });
+    }
+    
+    // Verificar que el userId sea un ObjectId válido
+    if (!mongoose.Types.ObjectId.isValid(decoded.userId)) {
+      return res.status(401).json({ 
+        message: 'Token inválido: userId no es un ObjectId válido',
+        error: 'invalid_token'
       });
     }
     
     req.user = decoded;
+    const user = await User.findById(decoded.userId);
+    
+    if (!user) {
+      return res.status(404).json({ 
+        message: 'Usuario no encontrado',
+        error: 'user_not_found'
+      });
+    }
+    
+    if (user.banned) {
+      return res.status(403).json({ 
+        message: 'Estás baneado y no puedes realizar acciones',
+        error: 'banned'
+      });
+    }
+    
     next();
   } catch (err) {
     console.error('Error al verificar token:', err);
     
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({ 
-        message: 'Token expirado. Por favor, inicia sesión nuevamente.' 
+        message: 'Token expirado. Por favor, inicia sesión nuevamente.',
+        error: 'token_expired'
       });
     }
     
-    res.status(401).json({ 
-      message: 'Invalid token',
-      error: err.message 
+    return res.status(401).json({ 
+      message: 'Token inválido o malformado.',
+      error: 'invalid_token'
     });
   }
-};  
+  
+  
+};

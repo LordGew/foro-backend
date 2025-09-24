@@ -26,37 +26,32 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
+    // Actualizar estado online
+    user.isOnline = true;
+    await user.save();
+
     // Generar token con userId (usamos _id de MongoDB convertido a string)
     const token = jwt.sign(
       { 
-        userId: user._id.toString(), // ¡Crucial: convertir ObjectId a string!
+        userId: user._id.toString(),
         role: user.role 
       },
       process.env.JWT_SECRET,
       { 
-        expiresIn: '7d',
-        algorithm: 'HS256'
+        expiresIn: '7d'
       }
     );
 
-    console.log('Login exitoso para:', email);
-    console.log('Token generado:', token);
-    
-    // Enviar token en cookie segura y en el cuerpo de la respuesta
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
-    });
-    
+    // Enviar token solo en el cuerpo de la respuesta (NO en cookies)
     res.json({ 
       message: 'Login exitoso', 
       token,
       user: { 
+        id: user._id,
         username: user.username,
         role: user.role,
-        userId: user._id.toString()
+        xp: user.xp,
+        profileImage: user.profileImage ? `http://localhost:5000/uploads/profiles/${user.profileImage}` : null
       }
     });
   } catch (err) {
@@ -66,6 +61,7 @@ const login = async (req, res) => {
       error: err.message 
     });
   }
+  console.log('Token generado:', token);
 };
 
 module.exports = { login };

@@ -10,6 +10,8 @@ const PostSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   replies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Reply' }],
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  slug: { type: String, unique: true }
 }, { timestamps: true });
 
 // Index para search

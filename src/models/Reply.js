@@ -1,12 +1,14 @@
+// src/models/Reply.js
 const mongoose = require('mongoose');
 
 const ReplySchema = new mongoose.Schema({
   content: { type: String, required: true },
-  post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
   parentReply: { type: mongoose.Schema.Types.ObjectId, ref: 'Reply' },
-  quote: { type: String }
+  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],  // Add this line
+  createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Reply', ReplySchema);

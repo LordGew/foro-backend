@@ -1,4 +1,4 @@
-// middleware/uploadCloudinary.js
+// src/middlewares/uploadMiddleware.js
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
@@ -34,4 +34,5 @@ const uploadSingleImage = (req, res, next) => {
   });
 };
 
+// Asegúrate de que esta línea esté al final
 module.exports = uploadSingleImage;

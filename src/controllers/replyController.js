@@ -1,58 +1,70 @@
+const mongoose = require('mongoose');
 const Reply = require('../models/Reply');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { sanitizeContent } = require('../utils/sanitize');
 
+// Función para añadir XP por crear una respuesta (línea ~18)
 const addReplyXp = async (userId) => {
   try {
-    const user = await User.findById(userId);
-    if (!user) return;
-    
-    user.xp = (user.xp || 0) + 5;
-    await user.save();
-    
-    console.log(`+5 XP a usuario ${user.username} por crear respuesta`);
-    return user;
+    if (!mongoose.Types.ObjectId.isValid(userId)) return;
+    await User.findByIdAndUpdate(userId, { 
+      $inc: { xp: 5, replyCount: 1 }  // Asume +5 XP y +1 replyCount; ajusta si diferente
+    }, { runValidators: false });  // FIX: Atómico, sin validación full
+    console.log(`+5 XP y +1 replyCount a usuario por respuesta (ID: ${userId})`);
   } catch (err) {
-    console.error('Error al añadir XP por respuesta:', err);
-    throw err;
+    console.error('Error al añadir XP por respuesta:', err.message);
   }
 };
 
+// Función para añadir XP por like en respuesta (línea ~34, para toggleLike)
 const addLikeXp = async (userId) => {
   try {
-    const user = await User.findById(userId);
-    if (!user) return;
-    
-    user.xp = (user.xp || 0) + 2;
-    await user.save();
-    
-    console.log(`+2 XP a usuario ${user.username} por recibir like`);
-    return user;
+    if (!mongoose.Types.ObjectId.isValid(userId)) return;
+    await User.findByIdAndUpdate(userId, { $inc: { xp: 2 } }, { runValidators: false });  // FIX: Atómico
+    console.log(`+2 XP a usuario por like en respuesta (ID: ${userId})`);
   } catch (err) {
-    console.error('Error al añadir XP por like:', err);
-    throw err;
+    console.error('Error al añadir XP por like en respuesta:', err.message);
   }
 };
 
+// Función para quitar XP por quitar like en respuesta
 const removeLikeXp = async (userId) => {
   try {
-    const user = await User.findById(userId);
-    if (!user) return;
-    
-    user.xp = Math.max(0, (user.xp || 0) - 1);
-    await user.save();
-    
-    console.log(`-1 XP a usuario ${user.username} por quitar like`);
-    return user;
+    if (!mongoose.Types.ObjectId.isValid(userId)) return;
+    await User.findByIdAndUpdate(userId, { $inc: { xp: -1 } }, { runValidators: false });  // FIX: Atómico
+    console.log(`-1 XP a usuario por quitar like en respuesta (ID: ${userId})`);
   } catch (err) {
-    console.error('Error al quitar XP por like:', err);
-    throw err;
+    console.error('Error al quitar XP por like en respuesta:', err.message);
+  }
+};
+
+// Función para añadir XP por dislike en respuesta (línea ~66, para toggleDislike)
+const addDislikeXp = async (userId) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(userId)) return;
+    await User.findByIdAndUpdate(userId, { $inc: { xp: -1 } }, { runValidators: false });  // FIX: Atómico
+    console.log(`-1 XP a usuario por dislike en respuesta (ID: ${userId})`);
+  } catch (err) {
+    console.error('Error al añadir XP por dislike en respuesta:', err.message);
+  }
+};
+
+// Función para quitar XP por quitar dislike en respuesta
+const removeDislikeXp = async (userId) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(userId)) return;
+    await User.findByIdAndUpdate(userId, { $inc: { xp: 1 } }, { runValidators: false });  // FIX: Atómico
+    console.log(`+1 XP a usuario por quitar dislike en respuesta (ID: ${userId})`);
+  } catch (err) {
+    console.error('Error al quitar XP por dislike en respuesta:', err.message);
   }
 };
 
 const createReply = async (req, res) => {
+  console.log('createReply hit! Token header:', req.headers['x-xsrf-token'] ? req.headers['x-xsrf-token'].substring(0, 10) + '...' : 'MISSING');  // 👈 NUEVO: Debug token
+  console.log('Session _csrf:', req.session._csrf ? req.session._csrf.substring(0, 10) + '...' : 'NO SESSION');  // 👈 NUEVO: Debug session
   try {
     if (!req.body) {
       return res.status(400).json({ message: 'No se recibió el cuerpo de la solicitud' });
@@ -88,12 +100,11 @@ const createReply = async (req, res) => {
     
     await Post.findByIdAndUpdate(req.params.postId, { $push: { replies: reply._id } });
     
+    // FIX: Update atómico para replyCount y XP (combina con addReplyXp, sin validación full)
     await User.findByIdAndUpdate(req.user.userId, {
-      $inc: { replyCount: 1 },
+      $inc: { replyCount: 1, xp: 5 },  // Asume +5 XP por reply; ajusta si diferente
       lastLogin: new Date()
-    });
-    
-    await addReplyXp(req.user.userId);
+    }, { runValidators: false });
     
     const post = await Post.findById(req.params.postId);
     if (post && post.author.toString() !== req.user.userId) {
@@ -112,11 +123,120 @@ const createReply = async (req, res) => {
     const populatedReply = await Reply.findById(reply._id)
       .populate('author', 'username profileImage replyCount')
       .populate('likes', 'username profileImage')
+      .populate('dislikes', 'username profileImage')
       .populate('parentReply', 'content author');
       
     res.status(201).json(populatedReply);
   } catch (err) {
     console.error('Error al crear respuesta:', err);
+    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
+  }
+};
+
+
+
+const toggleLike = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ message: 'ID de la respuesta no proporcionado' });
+    }
+    
+    const reply = await Reply.findById(id);
+    if (!reply) return res.status(404).json({ message: 'Respuesta no encontrada' });
+
+    // FIX: Check para author válido
+    if (!reply.author || !mongoose.Types.ObjectId.isValid(reply.author)) {
+      return res.status(400).json({ message: 'Respuesta sin autor válido' });
+    }
+
+    const userId = req.user.userId;
+    const likeIndex = reply.likes.findIndex(like => like.toString() === userId);
+    const dislikeIndex = reply.dislikes.findIndex(dislike => dislike.toString() === userId);
+    
+    if (likeIndex === -1) {
+      // Agregar like
+      reply.likes.push(userId);
+      // FIX: Update atómico para XP (combina addLikeXp/removeDislikeXp)
+      await User.findByIdAndUpdate(reply.author, { $inc: { xp: 2 } }, { runValidators: false });
+      
+      // Si tenía dislike, quitarlo y ajustar XP
+      if (dislikeIndex !== -1) {
+        reply.dislikes.splice(dislikeIndex, 1);
+        await User.findByIdAndUpdate(reply.author, { $inc: { xp: 1 } }, { runValidators: false });  // +1 por quitar dislike
+      }
+    } else {
+      // Quitar like
+      reply.likes.splice(likeIndex, 1);
+      // FIX: Update atómico para XP (combina removeLikeXp)
+      await User.findByIdAndUpdate(reply.author, { $inc: { xp: -1 } }, { runValidators: false });
+    }
+
+    await reply.save();
+    
+    const updatedReply = await Reply.findById(id)
+      .populate('author', 'username profileImage replyCount')
+      .populate('likes', 'username profileImage')
+      .populate('dislikes', 'username profileImage')
+      .populate('parentReply', 'content author');
+
+    res.json(updatedReply);
+  } catch (err) {
+    console.error('Error al manejar like:', err);
+    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
+  }
+};
+
+const toggleDislike = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ message: 'ID de la respuesta no proporcionado' });
+    }
+    
+    const reply = await Reply.findById(id);
+    if (!reply) return res.status(404).json({ message: 'Respuesta no encontrada' });
+
+    // FIX: Check para author válido
+    if (!reply.author || !mongoose.Types.ObjectId.isValid(reply.author)) {
+      return res.status(400).json({ message: 'Respuesta sin autor válido' });
+    }
+
+    const userId = req.user.userId;
+    const likeIndex = reply.likes.findIndex(like => like.toString() === userId);
+    const dislikeIndex = reply.dislikes.findIndex(dislike => dislike.toString() === userId);
+    
+    if (dislikeIndex === -1) {
+      // Agregar dislike
+      reply.dislikes.push(userId);
+      // FIX: Update atómico para XP (combina addDislikeXp/removeLikeXp)
+      await User.findByIdAndUpdate(reply.author, { $inc: { xp: -1 } }, { runValidators: false });
+      
+      // Si tenía like, quitarlo y ajustar XP
+      if (likeIndex !== -1) {
+        reply.likes.splice(likeIndex, 1);
+        await User.findByIdAndUpdate(reply.author, { $inc: { xp: 1 } }, { runValidators: false });  // +1 por quitar like
+      }
+    } else {
+      // Quitar dislike
+      reply.dislikes.splice(dislikeIndex, 1);
+      // FIX: Update atómico para XP (combina removeDislikeXp)
+      await User.findByIdAndUpdate(reply.author, { $inc: { xp: 1 } }, { runValidators: false });
+    }
+
+    await reply.save();
+    
+    const updatedReply = await Reply.findById(id)
+      .populate('author', 'username profileImage replyCount')
+      .populate('likes', 'username profileImage')
+      .populate('dislikes', 'username profileImage')
+      .populate('parentReply', 'content author');
+
+    res.json(updatedReply);
+  } catch (err) {
+    console.error('Error al manejar dislike:', err);
     res.status(500).json({ message: 'Error interno del servidor', error: err.message });
   }
 };
@@ -157,6 +277,7 @@ const getReplies = async (req, res) => {
     const replies = await Reply.find({ post: postId })
       .populate('author', 'username profileImage replyCount')
       .populate('likes', 'username profileImage')
+      .populate('dislikes', 'username profileImage')
       .populate('parentReply', 'content author')
       .sort({ createdAt: -1 });
       
@@ -169,35 +290,45 @@ const getReplies = async (req, res) => {
 
 const getAllReplies = async (req, res) => {
   try {
-    const { limit = 20, page = 1 } = req.query;
-    const skip = (page - 1) * limit;
-    
+    // Para el panel de moderación, devolver todos los comentarios sin paginación
     const replies = await Reply.find({})
       .populate('author', 'username profileImage replyCount')
       .populate('post', 'title')
       .populate('likes', 'username profileImage')
+      .populate('dislikes', 'username profileImage')
       .populate('parentReply', 'content author')
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-      
-    const total = await Reply.countDocuments();
-    
-    res.json({
-      replies,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(total / limit),
-        total,
-        hasNext: skip + replies.length < total,
-        hasPrev: page > 1
-      }
-    });
+      .lean();
+
+    // Formatear las respuestas para el frontend
+    const formattedReplies = replies.map(reply => ({
+      _id: reply._id,
+      content: reply.content,
+      author: reply.author ? {
+        _id: reply.author._id,
+        username: reply.author.username,
+        profileImage: reply.author.profileImage 
+          ? `${process.env.BASE_URL || 'http://localhost:5000'}/uploads/profiles/${reply.author.profileImage}`
+          : null
+      } : null,
+      post: reply.post ? {
+        _id: reply.post._id,
+        title: reply.post.title
+      } : null,
+      createdAt: reply.createdAt,
+      updatedAt: reply.updatedAt
+    }));
+
+    res.json(formattedReplies);
   } catch (err) {
     console.error('Error al obtener todas las respuestas:', err);
-    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
+    res.status(500).json({ 
+      message: 'Error interno del servidor', 
+      error: err.message 
+    });
   }
 };
+
 
 const updateReply = async (req, res) => {
   try {
@@ -227,6 +358,7 @@ const updateReply = async (req, res) => {
     const updatedReply = await Reply.findById(req.params.id)
       .populate('author', 'username profileImage replyCount')
       .populate('likes', 'username profileImage')
+      .populate('dislikes', 'username profileImage')
       .populate('parentReply', 'content author');
       
     res.json(updatedReply);
@@ -236,39 +368,35 @@ const updateReply = async (req, res) => {
   }
 };
 
-const toggleLike = async (req, res) => {
+// Añade esta función a tu replyController.js
+const deleteReplyByAdmin = async (req, res) => {
   try {
-    const { replyId } = req.params;
+    const reply = await Reply.findById(req.params.id);
     
-    if (!replyId) {
-      return res.status(400).json({ message: 'ID de la respuesta no proporcionado' });
-    }
-    
-    const reply = await Reply.findById(replyId);
-    if (!reply) return res.status(404).json({ message: 'Respuesta no encontrada' });
-
-    const userId = req.user.userId;
-    const index = reply.likes.findIndex(like => like.toString() === userId);
-    
-    if (index === -1) {
-      reply.likes.push(userId);
-      await addLikeXp(reply.author);
-    } else {
-      reply.likes.splice(index, 1);
-      await removeLikeXp(reply.author);
+    if (!reply) {
+      return res.status(404).json({ message: 'Comentario no encontrado' });
     }
 
-    await reply.save();
+    // Eliminar el comentario
+    await Reply.findByIdAndDelete(req.params.id);
     
-    const updatedReply = await Reply.findById(replyId)
-      .populate('author', 'username profileImage replyCount')
-      .populate('likes', 'username profileImage')
-      .populate('parentReply', 'content author');
+    // Actualizar contador de comentarios del usuario
+    await User.findByIdAndUpdate(reply.author, { 
+      $inc: { replyCount: -1 } 
+    });
 
-    res.json(updatedReply);
+    // Actualizar contador de comentarios del post
+    await Post.findByIdAndUpdate(reply.post, { 
+      $inc: { replyCount: -1 } 
+    });
+
+    res.json({ message: 'Comentario eliminado por administrador' });
   } catch (err) {
-    console.error('Error al manejar like:', err);
-    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
+    console.error('Error al eliminar comentario (admin):', err);
+    res.status(500).json({ 
+      message: 'Error interno del servidor', 
+      error: err.message 
+    });
   }
 };
 
@@ -278,5 +406,7 @@ module.exports = {
   getAllReplies, 
   updateReply, 
   deleteReply,
-  toggleLike
+  toggleLike,
+  toggleDislike,
+  deleteReplyByAdmin,
 };

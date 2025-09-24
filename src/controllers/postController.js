@@ -1,8 +1,12 @@
+const mongoose = require('mongoose');
 const Post = require('../models/Post');
 const User = require('../models/User');
+const Reply = require('../models/Reply');
+const Category = require('../models/Category');
 const { sanitizeContent } = require('../utils/sanitize');
 const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
+const slugify = require('slugify');
 
 // Role hierarchy ranks (higher number = higher rank)
 const roleRanks = {
@@ -21,119 +25,176 @@ const canModerate = (actorRole, targetRole) => {
 // Función para añadir XP por crear un post
 const addPostXp = async (userId) => {
   try {
-    const user = await User.findById(userId);
-    if (!user) return;
-    
-    user.xp = (user.xp || 0) + 10;
-    await user.save();
-    
-    console.log(`+10 XP a usuario ${user.username} por crear post`);
-    return user;
+    if (!mongoose.Types.ObjectId.isValid(userId)) return;
+    await User.findByIdAndUpdate(userId, { $inc: { xp: 10 } }, { runValidators: false });  // FIX: Atómico, sin save()
+    console.log(`+10 XP a usuario por crear post (ID: ${userId})`);
   } catch (err) {
-    console.error('Error al añadir XP por post:', err);
-    throw err;
+    console.error('Error al añadir XP por post:', err.message);
   }
 };
 
 // Función para añadir XP por recibir un like
 const addLikeXp = async (userId) => {
   try {
-    const user = await User.findById(userId);
-    if (!user) return;
-    
-    user.xp = (user.xp || 0) + 2;
-    await user.save();
-    
-    console.log(`+2 XP a usuario ${user.username} por recibir like`);
-    return user;
+    if (!mongoose.Types.ObjectId.isValid(userId)) return;
+    await User.findByIdAndUpdate(userId, { $inc: { xp: 2 } }, { runValidators: false });  // FIX: Atómico
+    console.log(`+2 XP a usuario por recibir like (ID: ${userId})`);
   } catch (err) {
-    console.error('Error al añadir XP por like:', err);
-    throw err;
+    console.error('Error al añadir XP por like:', err.message);
   }
 };
 
 // Función para quitar XP por quitar un like
 const removeLikeXp = async (userId) => {
   try {
-    const user = await User.findById(userId);
-    if (!user) return;
-    
-    user.xp = Math.max(0, (user.xp || 0) - 1);
-    await user.save();
-    
-    console.log(`-1 XP a usuario ${user.username} por quitar like`);
-    return user;
+    if (!mongoose.Types.ObjectId.isValid(userId)) return;
+    await User.findByIdAndUpdate(userId, { $inc: { xp: -1 } }, { runValidators: false });  // FIX: Atómico, clamp en schema
+    console.log(`-1 XP a usuario por quitar like (ID: ${userId})`);
   } catch (err) {
-    console.error('Error al quitar XP por like:', err);
-    throw err;
+    console.error('Error al quitar XP por like:', err.message);
+  }
+};
+
+// Función para añadir XP por recibir un dislike
+const addDislikeXp = async (userId) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(userId)) return;
+    await User.findByIdAndUpdate(userId, { $inc: { xp: -1 } }, { runValidators: false });  // FIX: Atómico
+    console.log(`-1 XP a usuario por recibir dislike (ID: ${userId})`);
+  } catch (err) {
+    console.error('Error al añadir XP por dislike:', err.message);
+  }
+};
+
+// Función para quitar XP por quitar un dislike
+const removeDislikeXp = async (userId) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(userId)) return;
+    await User.findByIdAndUpdate(userId, { $inc: { xp: 1 } }, { runValidators: false });  // FIX: Atómico
+    console.log(`+1 XP a usuario por quitar dislike (ID: ${userId})`);
+  } catch (err) {
+    console.error('Error al quitar XP por dislike:', err.message);
   }
 };
 
 const createPost = async (req, res) => {
   try {
     const { title, content, category } = req.body;
-    
+
     // Validar campos requeridos
     if (!title || !content || !category) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Faltan campos requeridos',
         required: ['title', 'content', 'category']
       });
     }
-    
+
     const sanitizedContent = sanitizeContent(content);
-    const post = new Post({ 
-      title, 
-      content: sanitizedContent, 
+    let slug = slugify(title, { lower: true, strict: true });
+
+    // Verifica unicidad del slug
+    let existingPost = await Post.findOne({ slug });
+    let counter = 1;
+    while (existingPost) {
+      slug = `${slugify(title, { lower: true, strict: true })}-${counter}`;
+      existingPost = await Post.findOne({ slug });
+      counter++;
+    }
+
+    const post = new Post({
+      title,
+      content: sanitizedContent,
       category,
-      author: req.user.userId 
+      author: req.user.userId,
+      slug // Agregar slug al post
     });
-    
+
     // Manejar la imagen si existe
     if (req.file) {
-      post.images = [req.file.path];  // Use req.file.path for the Cloudinary URL
+      post.images = [req.file.path];
     }
-    
+
     await post.save();
-    
-    // Aumentar contador de posts
-    await User.findByIdAndUpdate(req.user.userId, {
-      $inc: { postCount: 1 },
-      lastLogin: new Date()
-    });
-    
-    // Añadir XP al usuario por crear el post
-    await addPostXp(req.user.userId);
-    
+
+    // Aumentar contador de posts y añadir XP en una sola operación atomic (FIX: evita negativos y race conditions)
+    await User.updateOne(
+      { _id: req.user.userId },
+      { 
+        $inc: { 
+          postCount: 1,  // Incrementa postCount
+          xp: 10  // +10 XP
+        },
+        lastLogin: new Date()
+      },
+      { runValidators: true }  // Valida después de update
+    );
+
+    console.log(`Post creado y counters actualizados para usuario ${req.user.userId}`);
+
     res.status(201).json(post);
   } catch (err) {
     console.error('Error al crear post:', err);
-    
-    // Manejar errores específicos
     if (err.name === 'ValidationError') {
       const messages = Object.values(err.errors).map(err => err.message);
-      return res.status(400).json({ 
-        message: 'Error de validación', 
-        errors: messages 
-      });
+      return res.status(400).json({ message: 'Error de validación', errors: messages });
     }
-    
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ 
-        message: 'La imagen no debe superar los 5MB' 
-      });
+      return res.status(400).json({ message: 'La imagen no debe superar los 5MB' });
     }
-    
     if (err.message && err.message.includes('Solo se permiten imágenes')) {
-      return res.status(400).json({ 
-        message: err.message 
-      });
+      return res.status(400).json({ message: err.message });
     }
-    
-    res.status(500).json({ 
-      message: 'Error interno del servidor',
-      error: err.message 
-    });
+    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
+  }
+};
+
+// Nueva función para obtener post por slug
+const getPostByParam = async (req, res) => {
+  const param = req.params.param;
+  console.log('Procesando ruta por param:', param); // Depuración
+
+  try {
+    let post;
+    if (mongoose.Types.ObjectId.isValid(param)) {
+      // Si es un ID válido, buscar por ID
+      post = await Post.findById(param);
+    } else {
+      // Si no, buscar por slug
+      post = await Post.findOne({ slug: param });
+    }
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post no encontrado' });
+    }
+
+    // Poblar todos los campos en una sola llamada a populate con un array
+    await post.populate([
+      { path: 'author', select: 'username profileImage postCount replyCount xp _id' },
+      { path: 'category', select: 'name' },
+      {
+        path: 'replies',
+        populate: [
+          { path: 'author', select: 'username profileImage _id' },
+          { path: 'likes', select: 'username' },
+          { path: 'dislikes', select: 'username' },
+          { path: 'parentReply', populate: { path: 'author', select: 'username profileImage _id' } }
+        ],
+        options: { sort: { createdAt: 1 } }
+      },
+      { path: 'likes', select: 'username profileImage' },
+      { path: 'dislikes', select: 'username profileImage' }
+    ]);
+
+    // FIX: Verificar acceso a post VIP
+    const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
+    if (post.category.name === 'VIP' && !authorized) {
+      return res.status(403).json({ message: 'Acceso denegado a contenido VIP' });
+    }
+
+    res.json(post);
+  } catch (err) {
+    console.error('Error al obtener post por param:', err);
+    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
   }
 };
 
@@ -162,11 +223,12 @@ const deletePost = async (req, res) => {
       }
     }
     
-    // Disminuir contador de posts
-    await User.findByIdAndUpdate(post.author, {
-      $inc: { postCount: -1 },
-      lastLogin: new Date()
-    });
+    // Disminuir contador de posts (FIX: Atomic $inc, clamp implícito por schema min:0)
+    await User.updateOne(
+      { _id: post.author },
+      { $inc: { postCount: -1 } },  // Decrementa 1, no baja de 0 por schema
+      { runValidators: true }
+    );
     
     await post.deleteOne();
     res.json({ message: 'Post eliminado' });
@@ -201,36 +263,20 @@ const getPosts = async (req, res) => {
     }
 
     const posts = await Post.find(query)
-      .populate('author', 'username profileImage')
-      .populate('category', 'name')
+      .populate('author', 'username profileImage _id')
+      .populate('category', 'name')  // FIX: Asegurar populate de category para filtro
       .sort({ createdAt: -1 })
       .limit(20);
       
-    res.json(posts);
+    // FIX: Filtrar posts VIP solo para autorizados (Admin, GameMaster o VIP)
+    const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
+    const filteredPosts = posts.filter(post => 
+      !post.category || post.category.name !== 'VIP' || authorized
+    );
+      
+    res.json(filteredPosts);
   } catch (err) {
     console.error('Error al obtener posts:', err);
-    res.status(500).json({ 
-      message: 'Error interno del servidor',
-      error: err.message 
-    });
-  }
-};
-
-const getPostById = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id)
-      .populate('author', 'username profileImage postCount replyCount xp')
-      .populate('category', 'name')
-      .populate('replies', 'content author likes createdAt')
-      .populate('likes', 'username profileImage');
-      
-    if (!post) {
-      return res.status(404).json({ message: 'Post no encontrado' });
-    }
-    
-    res.json(post);
-  } catch (err) {
-    console.error('Error al obtener post por ID:', err);
     res.status(500).json({ 
       message: 'Error interno del servidor',
       error: err.message 
@@ -310,39 +356,214 @@ const getPublicIdFromUrl = (url) => {
 
 const likePost = async (req, res) => {
   try {
+    // FIX: Log para debug (remueve en prod)
+    console.log('Like request - req.user:', req.user ? req.user.userId : 'undefined', 'Post ID:', req.params.id);
+
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ message: 'Usuario no autenticado' });
+    }
+
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post no encontrado' });
 
+    if (!post.author || !mongoose.Types.ObjectId.isValid(post.author)) {
+      return res.status(400).json({ message: 'Post sin autor válido' });
+    }
+
     const userId = req.user.userId;
 
-    // Removed self-like prevention to allow liking own posts
-
-    const index = post.likes.findIndex(like => like.toString() === userId);
+    const likeIndex = post.likes.findIndex(like => like.toString() === userId);
+    const dislikeIndex = post.dislikes.findIndex(dislike => dislike.toString() === userId);
     
-    if (index === -1) {
+    if (likeIndex === -1) {
       // Agregar like
       post.likes.push(userId);
-      await addLikeXp(post.author);
+      await addLikeXp(post.author.toString());
+      
+      // Si tenía dislike, quitarlo
+      if (dislikeIndex !== -1) {
+        post.dislikes.splice(dislikeIndex, 1);
+        await removeDislikeXp(post.author.toString());
+      }
     } else {
       // Quitar like
-      post.likes.splice(index, 1);
-      await removeLikeXp(post.author);
+      post.likes.splice(likeIndex, 1);
+      await removeLikeXp(post.author.toString());
     }
 
     await post.save();
+    
+    console.log('Post saved after like, likes count:', post.likes.length);  // Debug
     
     // Obtener el post actualizado con todas las referencias
     const updatedPost = await Post.findById(req.params.id)
       .populate('author', 'username profileImage')
       .populate('category', 'name')
-      .populate('replies', 'content author likes createdAt')
-      .populate('likes', 'username profileImage');
+      .populate('replies', 'content author likes dislikes createdAt')
+      .populate('likes', 'username profileImage')
+      .populate('dislikes', 'username profileImage');
 
     res.json(updatedPost);
   } catch (err) {
-    console.error('Error al manejar like en post:', err);
+    console.error('Error al manejar like en post:', err.message);
     res.status(500).json({ 
       message: 'Error interno del servidor',
+      error: err.message 
+    });
+  }
+};
+
+const getPostsByCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // FIX: Log para debug (remueve en prod)
+    console.log('getPostsByCategory - User:', req.user ? { role: req.user.role, vip: req.user.vip } : 'No user', 'Category ID:', id);
+
+    // FIX: Obtener categoría
+    const category = await Category.findById(id);
+    if (!category) {
+      return res.status(404).json({ message: 'Categoría no encontrada' });
+    }
+
+    // FIX: Para categorías no VIP, permitir acceso público (authorized = true)
+    let authorized = true;
+    if (category.name.toUpperCase() === 'VIP') {
+      // Solo para VIP: Verificar auth
+      if (!req.user) {
+        authorized = false;
+      } else {
+        const userRole = req.user.role?.toUpperCase() || '';
+        // FIX: Mantengo check admin/Gamemaster intacto
+        let vipAuthorized = (userRole === 'ADMIN' || userRole === 'GAMEMASTER');
+        // FIX: Si vip undefined, fetch del profile para validación VIP
+        if (req.user.vip === undefined && !vipAuthorized) {
+          const fullUser = await User.findById(req.user.userId).select('vip vipExpiresAt');
+          vipAuthorized = fullUser ? fullUser.vip === true : false;
+        } else {
+          vipAuthorized = vipAuthorized || req.user.vip === true;
+        }
+        authorized = vipAuthorized;
+      }
+    }
+
+    console.log('Authorized check:', { categoryName: category.name, authorized });  // Debug
+
+    if (!authorized) {
+      console.log('Acceso denegado a VIP category para user:', req.user?.userId || 'anonymous');
+      return res.status(403).json({ message: 'Acceso denegado a categoría VIP' });
+    }
+
+    const posts = await Post.find({ category: id })
+      .populate('author', 'username profileImage')
+      .populate('category', 'name')
+      .sort({ createdAt: -1 });
+
+    if (!posts || posts.length === 0) {
+      return res.status(404).json({ message: 'No hay posts en esta categoría' });
+    }
+
+    console.log(`Posts cargados para category ${id}: ${posts.length}`);
+    res.json(posts);
+  } catch (err) {
+    console.error('Error al obtener posts por categoría:', err);
+    res.status(500).json({ message: 'Error al obtener posts por categoría' });
+  }
+};
+
+const dislikePost = async (req, res) => {
+  try {
+    // FIX: Log para debug
+    console.log('Dislike request - req.user:', req.user ? req.user.userId : 'undefined', 'Post ID:', req.params.id);
+
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ message: 'Usuario no autenticado' });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post no encontrado' });
+
+    if (!post.author || !mongoose.Types.ObjectId.isValid(post.author)) {
+      return res.status(400).json({ message: 'Post sin autor válido' });
+    }
+
+    const userId = req.user.userId;
+
+    const likeIndex = post.likes.findIndex(like => like.toString() === userId);
+    const dislikeIndex = post.dislikes.findIndex(dislike => dislike.toString() === userId);
+    
+    if (dislikeIndex === -1) {
+      // Agregar dislike
+      post.dislikes.push(userId);
+      await addDislikeXp(post.author.toString());
+      
+      // Si tenía like, quitarlo
+      if (likeIndex !== -1) {
+        post.likes.splice(likeIndex, 1);
+        await removeLikeXp(post.author.toString());
+      }
+    } else {
+      // Quitar dislike
+      post.dislikes.splice(dislikeIndex, 1);
+      await removeDislikeXp(post.author.toString());
+    }
+
+    await post.save();
+    
+    console.log('Post saved after dislike, dislikes count:', post.dislikes.length);  // Debug
+    
+    // Obtener el post actualizado con todas las referencias
+    const updatedPost = await Post.findById(req.params.id)
+      .populate('author', 'username profileImage')
+      .populate('category', 'name')
+      .populate('replies', 'content author likes dislikes createdAt')
+      .populate('likes', 'username profileImage')
+      .populate('dislikes', 'username profileImage');
+
+    res.json(updatedPost);
+  } catch (err) {
+    console.error('Error al manejar dislike en post:', err.message);
+    res.status(500).json({ 
+      message: 'Error interno del servidor',
+      error: err.message 
+    });
+  }
+};
+
+const getPostsCount = async (req, res) => {
+  try {
+    const count = await Post.countDocuments({});
+    res.json({ count });
+  } catch (err) {
+    console.error('Error al contar posts:', err);
+    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
+  }
+};
+
+const deletePostByAdmin = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({ message: 'Post no encontrado' });
+    }
+
+    // Eliminar el post
+    await Post.findByIdAndDelete(req.params.id);
+    
+    // Actualizar contador de posts del usuario
+    await User.findByIdAndUpdate(post.author, { 
+      $inc: { postCount: -1 } 
+    });
+
+    // Eliminar todas las respuestas asociadas al post
+    await Reply.deleteMany({ post: req.params.id });
+
+    res.json({ message: 'Post eliminado por administrador' });
+  } catch (err) {
+    console.error('Error al eliminar post (admin):', err);
+    res.status(500).json({ 
+      message: 'Error interno del servidor', 
       error: err.message 
     });
   }
@@ -351,9 +572,14 @@ const likePost = async (req, res) => {
 module.exports = { 
   createPost, 
   getPosts, 
-  getPostById, 
   updatePost, 
   deletePost,
   likePost,
-  addPostXp
+  dislikePost,
+  addPostXp,
+  getPostsByCategory,
+  getPostsCount,
+  deletePostByAdmin,
+  getPostByParam,
+  removeDislikeXp
 };

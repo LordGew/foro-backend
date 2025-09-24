@@ -25,11 +25,15 @@ const seed = async () => {
 
     // Categorías iniciales
     await Category.insertMany([
-      { name: 'General Discussion' },
-      { name: 'Raids & Dungeons' },
-      { name: 'PvP' },
-      { name: 'Lore & Story' },
-    ]);
+  { name: 'Noticias y Comunidad' },
+  { name: 'Discusión General' },
+  { name: 'Guías y Tutoriales' },
+  { name: 'Servidores Privados' },
+  { name: 'Descargas y Recursos' },
+  { name: 'Soporte Técnico' },
+  { name: 'Desarrollo y Emulación' },
+  { name: 'Mercado e Intercambios' }
+]);
 
     // Settings iniciales
     await AdminSettings.create({

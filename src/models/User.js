@@ -1,7 +1,8 @@
-// User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const validator = require('validator');
+
+const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
 
 const UserSchema = new mongoose.Schema({
   username: { 
@@ -78,22 +79,53 @@ const UserSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User' 
   }],
+  blockedBy: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User' 
+  }],
+  reportedChats: [{
+    chatId: { type: String, required: true },
+    reason: { type: String, default: 'inappropriate' },
+    reportedAt: { type: Date, default: Date.now }
+  }],
   moderationHistory: [{ 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'XPLog' 
   }],
-  postCount: {
-    type: Number,
-    default: 0
+  postCount: { 
+    type: Number, 
+    default: 0,
+    min: 0
   },
-  replyCount: {
-    type: Number,
-    default: 0
+  replyCount: { 
+    type: Number, 
+    default: 0,
+    min: 0
   },
-  lastLogin: {
-    type: Date,
-    default: Date.now
-  }
+  isOnline: { 
+    type: Boolean, 
+    default: false 
+  },
+  lastLogin: { 
+    type: Date, 
+    default: Date.now 
+  },
+  // En tu archivo User.js (modelo de usuario)
+// Añade estos campos al schema:
+vip: { 
+  type: Boolean, 
+  default: false 
+},
+vipExpiresAt: { 
+  type: Date, 
+  default: null 
+},
+resetPasswordToken: { 
+  type: String 
+},
+resetPasswordExpires: { 
+  type: Date 
+},
 }, { 
   timestamps: true,
   toJSON: { virtuals: true },
@@ -102,7 +134,6 @@ const UserSchema = new mongoose.Schema({
 
 // Virtual: Calcular el nivel basado en XP
 UserSchema.virtual('level').get(function() {
-  // Fórmula: nivel = sqrt(xp / 10) + 1
   return Math.floor(Math.sqrt(this.xp / 10)) + 1;
 });
 
@@ -128,7 +159,6 @@ UserSchema.virtual('progressToNextLevel').get(function() {
   const nextLevelXp = this.level * this.level * 10;
   const xpToNextLevel = nextLevelXp - currentLevelXp;
   const xpInCurrentLevel = this.xp - currentLevelXp;
-  
   return Math.min(100, Math.round((xpInCurrentLevel / xpToNextLevel) * 100));
 });
 
@@ -138,11 +168,22 @@ UserSchema.virtual('xpInCurrentLevel').get(function() {
   return this.xp - currentLevelXp;
 });
 
+// Transformar toJSON para agregar baseUrl a profileImage
+UserSchema.options.toJSON = {
+  transform: function(doc, ret) {
+    if (ret.profileImage) {
+      ret.profileImage = `${baseUrl}/uploads/profiles/${ret.profileImage}`;
+    }
+    if (ret.bannerImage) {
+      ret.bannerImage = `${baseUrl}/uploads/banners/${ret.bannerImage}`;
+    }
+    return ret;
+  }
+};
+
 // Hook: Hash de la contraseña antes de guardar
 UserSchema.pre('save', async function(next) {
-  // Solo hashear si la contraseña ha sido modificada
   if (!this.isModified('password')) return next();
-  
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -159,9 +200,8 @@ UserSchema.methods.matchPassword = async function(password) {
 
 // Método: Añadir XP
 UserSchema.methods.addXp = async function(xp, reason) {
+  if (xp < 0) throw new Error('XP cannot be negative');
   this.xp += xp;
-  
-  // Registrar en historial de XP si es necesario
   if (reason) {
     const XPLog = require('./XPLog');
     const xpLog = new XPLog({
@@ -171,7 +211,6 @@ UserSchema.methods.addXp = async function(xp, reason) {
     });
     await xpLog.save();
   }
-  
   return this.save();
 };
 
@@ -209,5 +248,8 @@ UserSchema.methods.updateLastLogin = async function() {
 UserSchema.index({ username: 'text', bio: 'text' });
 UserSchema.index({ xp: -1 });
 UserSchema.index({ role: 1 });
+UserSchema.index({ 'mutedChats': 1 });
+UserSchema.index({ 'blockedUsers': 1 });
+UserSchema.index({ 'reportedChats.chatId': 1 });
 
 module.exports = mongoose.model('User', UserSchema);
