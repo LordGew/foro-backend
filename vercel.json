@@ -8,9 +8,15 @@
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "server.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ]
-  
+  ],
+  "env": {
+    "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+  }
 }
