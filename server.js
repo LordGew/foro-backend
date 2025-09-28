@@ -3,7 +3,6 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const helmet = require('helmet');
-const multer = require('multer');
 const session = require('express-session');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
 const swaggerUi = require('swagger-ui-express');
@@ -63,25 +62,41 @@ if (!isProduction) {
   });
 }
 
-// 1. Middlewares de seguridad
+// Middlewares de seguridad
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   referrerPolicy: isProduction ? 'no-referrer' : 'origin',
 }));
 
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:4200',
-  credentials: true,
-  methods: 'GET,POST,PUT,DELETE,PATCH,OPTIONS',
-  allowedHeaders: 'Content-Type,Authorization,X-CSRF-Token,X-XSRF-TOKEN,x-user-id',
-}));
+// CORS configurado correctamente
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://wow-community.com',
+      'http://localhost:4200',
+      /\.vercel\.app$/,
+    ];
 
-// 2. Parser y cookies
+    // Permite peticiones sin origin (Postman, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    const isAllowed = allowedOrigins.some(allowed =>
+      allowed instanceof RegExp ? allowed.test(origin) : origin === allowed
+    );
+
+    callback(null, isAllowed);
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+
+// Parser y cookies
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// 3. Sesiones
+// Sesiones
 const isSecure = isProduction;
 app.use(
   session({
@@ -96,63 +111,13 @@ app.use(
   })
 );
 
-// 4. Archivos estáticos (solo en desarrollo)
+// Archivos estáticos (solo en desarrollo)
 if (!isProduction) {
-  app.use('/uploads', (req, res, next) => {
-    console.log('📂 Solicitud de archivo estático:', req.originalUrl);
-    next();
-  }, express.static(path.join(__dirname, 'public/uploads')));
+  app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
   app.use('/public', express.static(path.join(__dirname, 'public')));
 }
 
-// 5. Configuración de Multer (solo para desarrollo; en prod usa Cloudinary)
-let uploadProfile, uploadPost, uploadBanner;
-
-if (!isProduction) {
-  const profileStorage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'public/uploads/profiles/'),
-    filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
-  });
-
-  const postStorage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'public/uploads/posts/'),
-    filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
-  });
-
-  const bannerStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      const bannersDir = 'public/uploads/banners';
-      if (!fs.existsSync(bannersDir)) {
-        fs.mkdirSync(bannersDir, { recursive: true });
-      }
-      cb(null, bannersDir);
-    },
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      const randomName = crypto.randomBytes(16).toString('hex');
-      cb(null, `${randomName}${ext}`);
-    },
-  });
-
-  const fileFilter = (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png|gif|webp/;
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = filetypes.test(file.mimetype);
-    if (mimetype && extname) return cb(null, true);
-    cb(new Error('Solo se permiten imágenes (JPG, PNG, GIF, WebP)'));
-  };
-
-  const limits = { fileSize: 5 * 1024 * 1024 };
-
-  uploadProfile = multer({ storage: profileStorage, limits, fileFilter });
-  uploadPost = multer({ storage: postStorage, limits, fileFilter });
-  uploadBanner = multer({ storage: bannerStorage, limits, fileFilter });
-} else {
-  // En producción, las subidas deben manejarse con Cloudinary (no con multer.diskStorage)
-  uploadProfile = uploadPost = uploadBanner = null;
-}
-
-// 6. Rutas de Stripe
+// Rutas de Stripe
 if (stripe) {
   app.post('/api/users/create-payment-intent', authMiddleware, async (req, res) => {
     const { amount, currency, duration, success_url, cancel_url } = req.body;
@@ -214,7 +179,7 @@ if (stripe) {
   });
 }
 
-// Webhook de Stripe (más seguro)
+// Webhook de Stripe
 app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -233,13 +198,12 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
 
   if (event.type === 'checkout.session.completed') {
     console.log('✅ Pago completado vía webhook:', event.data.object.id);
-    // Aquí podrías replicar la lógica de /success si lo deseas
   }
 
   res.status(200).end();
 });
 
-// Ruta de mensajes (MVP)
+// Ruta de mensajes (MVP con memoria)
 app.put('/api/messages/:chatId/:messageId', async (req, res) => {
   const { chatId, messageId } = req.params;
   const { content } = req.body || {};
@@ -259,7 +223,7 @@ app.put('/api/messages/:chatId/:messageId', async (req, res) => {
   res.json(updated);
 });
 
-// 7. Rutas principales
+// Rutas principales
 const userRoutes = require('./src/routes/userRoutes');
 const categoryRoutes = require('./src/routes/categoryRoutes');
 const postRoutes = require('./src/routes/postRoutes');
@@ -278,7 +242,7 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/admin', adminRoutes);
 
-// 8. Rate limiting
+// Rate limiting
 const ratePoints = isProduction ? 50 : 100;
 const rateLimiter = new RateLimiterMemory({ points: ratePoints, duration: 60 });
 app.use((req, res, next) => {
@@ -288,11 +252,7 @@ app.use((req, res, next) => {
     .catch(() => res.status(429).json({ message: 'Too Many Requests' }));
 });
 
-// 9. Conexión a MongoDB
-const connectDB = require('./src/config/db');
-connectDB();
-
-// 10. Socket.IO
+// Socket.IO
 io.on('connection', (socket) => {
   console.log('🔌 User connected:', socket.id);
   socket.on('join', (userId) => socket.join(userId));
@@ -307,7 +267,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 11. Swagger (solo en desarrollo)
+// Swagger (solo en desarrollo)
 if (!isProduction) {
   try {
     const swaggerDocs = yaml.load(path.join(__dirname, 'swagger.yaml'));
@@ -317,14 +277,11 @@ if (!isProduction) {
   }
 }
 
-// 12. Manejo de errores
+// Manejo de errores
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  if (err instanceof multer.MulterError) {
-    return res.status(400).json({ message: `Upload error: ${err.message}` });
-  }
-  if (err.message?.includes('Solo se permiten imágenes')) {
-    return res.status(400).json({ message: err.message });
+  if (err.message?.includes('Solo se permiten imágenes') || err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ message: err.message || 'Upload error' });
   }
   res.status(500).json({
     message: 'Internal Server Error',
@@ -333,16 +290,33 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 13. Iniciar servidor
-const PORT = process.env.PORT || 5000;
+// Iniciar servidor con seed
+const startServer = async () => {
+  try {
+    // Conectar a MongoDB
+    const connectDB = require('./src/config/db');
+    await connectDB();
+    console.log('✅ MongoDB connected');
+
+    // Ejecutar seed
+    const seed = require('./seed');
+    await seed();
+
+    // Iniciar servidor
+    const PORT = process.env.PORT || 5000;
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Servidor corriendo en puerto ${PORT} [${isProduction ? 'PROD' : 'DEV'}]`);
+      console.log(`🌍 FRONTEND_URL: ${process.env.FRONTEND_URL}`);
+    });
+  } catch (err) {
+    console.error('❌ Error al iniciar el servidor:', err);
+    process.exit(1);
+  }
+};
+
+// Solo inicia si no es un test
 if (process.env.NODE_ENV !== 'test') {
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Servidor corriendo en puerto ${PORT} [${isProduction ? 'PROD' : 'DEV'}]`);
-    console.log(`🌍 FRONTEND_URL: ${process.env.FRONTEND_URL}`);
-    if (!isProduction) {
-      console.log(`📂 Archivos servidos desde: ${path.join(__dirname, 'public/uploads')}`);
-    }
-  });
+  startServer();
 }
 
-module.exports = { app, io, uploadProfile, uploadPost, uploadBanner };
+module.exports = { app, io };
