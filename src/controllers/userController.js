@@ -1,4 +1,8 @@
-const { io } = require('../../server'); // Elimina esta línea y usa req.io
+// userController.js
+// Este archivo contiene todos los controladores para las rutas relacionadas con usuarios.
+// Incluye funciones para registro, login, logout, actualización de perfil, cambio de rol, ban/mute, etc.
+// También maneja la lógica de VIP y pagos con Stripe.
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
@@ -7,10 +11,12 @@ const Notification = require('../models/Notification');
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 
-const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+const baseUrl = process.env.BACKEND_URL || 'https://foro-backend-9j93.onrender.com';
 
 // Contar usuarios
+// Esta función cuenta el número total de usuarios en la base de datos y devuelve el conteo.
 const getUsersCount = async (req, res) => {
   try {
     const count = await User.countDocuments();
@@ -22,6 +28,7 @@ const getUsersCount = async (req, res) => {
 };
 
 // Registro
+// Esta función registra un nuevo usuario, validando los inputs y comprobando si el username o email ya existen.
 const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -56,6 +63,7 @@ const register = async (req, res) => {
 };
 
 // Login
+// Esta función maneja el inicio de sesión, validando credenciales y generando un token JWT.
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -102,6 +110,7 @@ const login = async (req, res) => {
 };
 
 // Logout
+// Esta función maneja el cierre de sesión, actualizando el estado online del usuario.
 const logout = async (req, res) => {
   try {
     const userId = req.user?.userId;
@@ -120,6 +129,7 @@ const logout = async (req, res) => {
 };
 
 // Update Profile
+// Esta función actualiza el perfil del usuario, como username o email.
 const updateProfile = async (req, res) => {
   try {
     const { username, email, profilePicture } = req.body;
@@ -140,6 +150,7 @@ const updateProfile = async (req, res) => {
 };
 
 // Change Role
+// Esta función cambia el rol de un usuario, notificando al usuario afectado.
 const changeRole = async (req, res) => {
   try {
     const { role } = req.body;
@@ -164,6 +175,7 @@ const changeRole = async (req, res) => {
 };
 
 // Ban User
+// Esta función banea a un usuario, notificando y emitiendo un evento via socket.
 const banUser = async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(req.params.id, { banned: true }, { new: true, runValidators: true })
@@ -188,6 +200,7 @@ const banUser = async (req, res) => {
 };
 
 // Unban User
+// Esta función desbanea a un usuario, notificando y emitiendo un evento via socket.
 const unbanUser = async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(req.params.id, { banned: false }, { new: true, runValidators: true })
@@ -212,6 +225,7 @@ const unbanUser = async (req, res) => {
 };
 
 // Mute User
+// Esta función silencia a un usuario, notificando y emitiendo un evento via socket.
 const muteUser = async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(req.params.id, { muted: true }, { new: true, runValidators: true })
@@ -236,6 +250,7 @@ const muteUser = async (req, res) => {
 };
 
 // Unmute User
+// Esta función des-silencia a un usuario, notificando y emitiendo un evento via socket.
 const unmuteUser = async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(req.params.id, { muted: false }, { new: true, runValidators: true })
@@ -260,6 +275,7 @@ const unmuteUser = async (req, res) => {
 };
 
 // Get User Profile
+// Esta función obtiene el perfil del usuario autenticado, excluyendo la contraseña.
 const getUserProfile = async (req, res) => {
   try {
     if (!req.user) {
@@ -285,6 +301,7 @@ const getUserProfile = async (req, res) => {
 };
 
 // Get User By Id
+// Esta función obtiene el perfil de un usuario por ID, excluyendo la contraseña.
 const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -304,6 +321,7 @@ const getUserById = async (req, res) => {
 };
 
 // Get Online Users
+// Esta función obtiene la lista de usuarios online, incluyendo el usuario actual.
 const getOnlineUsers = async (req, res) => {
   try {
     console.log('Solicitud recibida para obtener usuarios online');
@@ -352,6 +370,7 @@ const getOnlineUsers = async (req, res) => {
 };
 
 // Update Password
+// Esta función actualiza la contraseña del usuario autenticado, validando la contraseña actual.
 const updatePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword, confirmNewPassword } = req.body;
@@ -389,6 +408,7 @@ const updatePassword = async (req, res) => {
 };
 
 // Update Profile Image
+// Esta función actualiza la foto de perfil del usuario, eliminando la anterior si existe.
 const updateProfileImage = async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -419,6 +439,7 @@ const updateProfileImage = async (req, res) => {
 };
 
 // Search Users
+// Esta función busca usuarios por username o name, limitando a 10 resultados.
 const searchUsers = async (req, res) => {
   try {
     const { q } = req.query;
@@ -442,7 +463,7 @@ const searchUsers = async (req, res) => {
       _id: user._id,
       username: user.username,
       name: user.name,
-      profileImage: user.profileImage || user.avatar || user.profilePicture || null
+      profileImage: user.profileImage ? `${baseUrl}/uploads/profiles/${user.profileImage}` : null
     }));
 
     res.status(200).json(normalizedUsers);
@@ -451,7 +472,9 @@ const searchUsers = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 // Activate VIP
+// Esta función activa el modo VIP para el usuario autenticado o para otro usuario si es admin, calculando la fecha de expiración.
 const activateVip = async (req, res) => {
   try {
     const { duration, userId } = req.body;
@@ -468,37 +491,23 @@ const activateVip = async (req, res) => {
     
     let expiresAt;
     switch (duration) {
-      case 'month':
-        expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        break;
-      case 'year':
-        expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-        break;
-      case 'lifetime':
-        expiresAt = null;
-        break;
-      default:
-        return res.status(400).json({ error: 'Duración inválida' });
+      case 'bimonthly': expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); break;
+      case 'year': expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); break;
+      case 'lifetime': expiresAt = null; break;
+      default: expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
     }
-    
     user.vip = true;
     user.vipExpiresAt = expiresAt;
     await user.save();
-    
-    res.json({ 
-      message: 'VIP activado exitosamente', 
-      user: {
-        ...user.toObject(),
-        vipExpiresAt: user.vipExpiresAt
-      }
-    });
+    res.json({ status: 'vip_activated', expiresAt });
   } catch (error) {
     console.error('Error al activar VIP:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error processing VIP activation' });
   }
-};;
+};
 
 // Deactivate VIP
+// Esta función desactiva el modo VIP para el usuario autenticado.
 const deactivateVip = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
@@ -515,6 +524,7 @@ const deactivateVip = async (req, res) => {
 };
 
 // Check VIP Status
+// Esta función verifica el estado VIP del usuario autenticado.
 const checkVipStatus = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
@@ -530,6 +540,7 @@ const checkVipStatus = async (req, res) => {
 };
 
 // Process VIP Payment
+// Esta función procesa un pago VIP usando Stripe Payment Intent (obsoleta, se recomienda usar createPaymentIntent).
 const processVipPayment = async (req, res) => {
   try {
     const { amount, currency, duration, paymentMethodId } = req.body;
@@ -556,8 +567,8 @@ const processVipPayment = async (req, res) => {
     if (paymentIntent.status === 'succeeded') {
       let expiresAt;
       switch(duration) {
-        case 'month':
-          expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        case 'bimonthly':
+          expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
           break;
         case 'year':
           expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
@@ -566,7 +577,7 @@ const processVipPayment = async (req, res) => {
           expiresAt = null;
           break;
         default:
-          return res.status(400).json({ error: 'Duración inválida' });
+          expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
       }
       
       user.vip = true;
@@ -590,28 +601,36 @@ const processVipPayment = async (req, res) => {
 };
 
 // Create Payment Intent
+// Esta función crea un Payment Intent con Stripe para procesar pagos VIP, asegurando que el monto sea válido.
 const createPaymentIntent = async (req, res) => {
+  if (!stripe) {
+    return res.status(500).json({ error: 'Stripe no está configurado. Verifica la clave secreta.' });
+  }
   try {
-    const { amount, currency = 'usd', description, duration } = req.body;
+    const { amount, currency = 'usd', duration, success_url, cancel_url } = req.body;
     
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ error: 'Amount must be greater than 0' });
+    if (!amount || amount < 50) {
+      return res.status(400).json({ error: 'Amount must be at least 50 cents' });
     }
     
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount * 100,
-      currency: currency,
-      metadata: {
-        userId: req.user.userId,
-        duration: duration,
-        type: 'vip_membership',
-        description: description || 'VIP Membership'
-      }
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: currency,
+          product_data: {
+            name: `VIP Membership - ${duration === 'bimonthly' ? '60 días' : duration === 'year' ? '1 año' : 'Vitalicio'}`,
+          },
+          unit_amount: amount,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url,
+      cancel_url,
+      metadata: { duration, userId: req.user.userId }
     });
-    
-    res.json({
-      clientSecret: paymentIntent.client_secret
-    });
+    res.json({ sessionId: session.id });
   } catch (error) {
     console.error('Error creating payment intent:', error);
     res.status(500).json({ error: 'Failed to create payment intent' });
@@ -619,58 +638,50 @@ const createPaymentIntent = async (req, res) => {
 };
 
 // Handle Stripe Webhook
+// Esta función maneja los webhooks de Stripe para eventos como pagos completados, activando VIP automáticamente.
 const handleStripeWebhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    return res.status(400).send('Webhook secret missing');
+  }
+
   let event;
-  
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
   } catch (err) {
     console.error('Webhook error:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
-  
-  if (event.type === 'payment_intent.succeeded') {
-    const paymentIntent = event.data.object;
-    console.log('Payment succeeded:', paymentIntent.id);
-    
-    const userId = paymentIntent.metadata.userId;
+
+  if (event.type === 'checkout.session.completed') {
+    console.log('✅ Pago completado vía webhook:', event.data.object.id);
+    const session = event.data.object;
+    const userId = session.metadata.userId;
+    const duration = session.metadata.duration;
     if (userId) {
-      try {
-        const user = await User.findById(userId);
-        if (user) {
-          let expiresAt;
-          const duration = paymentIntent.metadata.duration;
-          switch(duration) {
-            case 'month':
-              expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-              break;
-            case 'year':
-              expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-              break;
-            case 'lifetime':
-              expiresAt = null;
-              break;
-            default:
-              expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-          }
-          
-          user.vip = true;
-          user.vipExpiresAt = expiresAt;
-          await user.save();
-          
-          console.log('VIP activated for user:', userId);
+      const user = await User.findById(userId);
+      if (user) {
+        let expiresAt;
+        switch (duration) {
+          case 'bimonthly': expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); break;
+          case 'year': expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); break;
+          case 'lifetime': expiresAt = null; break;
+          default: expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
         }
-      } catch (error) {
-        console.error('Error activating VIP:', error);
+        user.vip = true;
+        user.vipExpiresAt = expiresAt;
+        await user.save();
       }
     }
   }
-  
-  res.json({ received: true });
+
+  res.status(200).end();
 };
+
+// Unblock User
+// Esta función desbloquea a un usuario de la lista de bloqueados del usuario autenticado.
 const unblockUser = async (req, res) => {
   try {
     const { id } = req.params; // ID del usuario a desbloquear
@@ -698,56 +709,45 @@ const unblockUser = async (req, res) => {
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
-// Accept Request (sin modelo Request separado - usa messageRequests en User)
-// Accept Request (sin modelo Chat - genera chatId string)
+
+// Accept Request
+// Esta función acepta una solicitud de chat, generando un chatId y actualizando contactos.
 const acceptRequest = async (req, res) => {
   try {
     const requesterId = req.params.id; // ID del solicitante (quien envió la request)
     const receiverId = req.user.userId; // ID del usuario autenticado (quien acepta)
 
-    console.log('Aceptando solicitud:', { requesterId, receiverId });
-
-    // Validar IDs
     if (!mongoose.Types.ObjectId.isValid(requesterId) || !mongoose.Types.ObjectId.isValid(receiverId)) {
       return res.status(400).json({ message: 'IDs de usuario inválidos' });
     }
 
-    // Buscar receptor
     const receiver = await User.findById(receiverId);
     if (!receiver) {
       return res.status(404).json({ message: 'Usuario receptor no encontrado' });
     }
 
-    // Verificar si el solicitante está en messageRequests del receptor
     const requesterIndex = receiver.messageRequests.findIndex(rId => rId.toString() === requesterId);
     if (requesterIndex === -1) {
       return res.status(404).json({ message: 'Solicitud no encontrada o ya procesada' });
     }
 
-    // Buscar solicitante
     const requester = await User.findById(requesterId);
     if (!requester) {
       return res.status(404).json({ message: 'Usuario solicitante no encontrado' });
     }
 
-    // Generar chatId único como string (ordenado para consistencia: minId-maxId)
     const ids = [requesterId, receiverId].map(id => id.toString()).sort();
     const chatId = `${ids[0]}-${ids[1]}`;
 
-    console.log('ChatId generado:', chatId);
-
-    // Eliminar de messageRequests del receptor
     receiver.messageRequests.splice(requesterIndex, 1);
-    receiver.contacts.push(requesterId); // Agregar a contacts del receptor
+    receiver.contacts.push(requesterId);
     await receiver.save();
 
-    // Agregar receptor a contacts del solicitante (si no existe ya)
     if (!requester.contacts.some(cId => cId.toString() === receiverId)) {
       requester.contacts.push(receiverId);
       await requester.save();
     }
 
-    // Notificar via socket
     if (req.io) {
       req.io.to(requesterId.toString()).emit('requestAccepted', {
         chatId,
@@ -759,7 +759,6 @@ const acceptRequest = async (req, res) => {
       });
     }
 
-    // Respuesta con el chat "creado" (solo metadata, ya que no hay modelo Chat)
     const chatResponse = {
       id: chatId,  // Como 'id' para frontend
       chatId: chatId,
@@ -776,6 +775,7 @@ const acceptRequest = async (req, res) => {
     res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 };
+
 module.exports = { 
   register, 
   login, 
