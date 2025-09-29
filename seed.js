@@ -41,7 +41,7 @@ const seed = async () => {
       'Descargas y Recursos',
       'Soporte Técnico',
       'Desarrollo y Emulación',
-      'Mercado e Intercambios'
+      'Mercado e Intercambios',
     ];
 
     const existingCategories = await Category.find({});
