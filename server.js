@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -11,8 +10,9 @@ const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const fs = require('fs');
-const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
+const connectDB = require('./src/config/db');
+const seed = require('./seed');
 
 // Cargar variables de entorno
 dotenv.config();
@@ -46,21 +46,19 @@ const io = new Server(server, {
   },
 });
 
-// Crear directorios de subida (solo en desarrollo)
-if (!isProduction) {
-  const uploadDirs = [
-    'public/uploads',
-    'public/uploads/profiles',
-    'public/uploads/posts',
-    'public/uploads/banners',
-  ];
-  uploadDirs.forEach((dir) => {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-      console.log(`✅ Directorio creado: ${dir}`);
-    }
-  });
-}
+// Crear directorios de subida (en desarrollo y producción)
+const uploadDirs = [
+  'public/uploads',
+  'public/uploads/profiles',
+  'public/uploads/posts',
+  'public/uploads/banners',
+];
+uploadDirs.forEach((dir) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`✅ Directorio creado: ${dir}`);
+  }
+});
 
 // Middlewares de seguridad
 app.use(helmet({
@@ -111,11 +109,9 @@ app.use(
   })
 );
 
-// Archivos estáticos (solo en desarrollo)
-if (!isProduction) {
-  app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
-  app.use('/public', express.static(path.join(__dirname, 'public')));
-}
+// Archivos estáticos (en desarrollo y producción)
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Rutas de Stripe
 if (stripe) {
@@ -267,14 +263,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Swagger (solo en desarrollo)
-if (!isProduction) {
-  try {
-    const swaggerDocs = yaml.load(path.join(__dirname, 'swagger.yaml'));
-    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-  } catch (e) {
-    console.warn('⚠️ Swagger no disponible:', e.message);
-  }
+// Swagger (en desarrollo y producción)
+try {
+  const swaggerDocs = yaml.load(path.join(__dirname, 'swagger.yaml'));
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+} catch (e) {
+  console.warn('⚠️ Swagger no disponible:', e.message);
 }
 
 // Manejo de errores
@@ -294,12 +288,10 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
   try {
     // Conectar a MongoDB
-    const connectDB = require('./src/config/db');
     await connectDB();
     console.log('✅ MongoDB connected');
 
     // Ejecutar seed
-    const seed = require('./seed');
     await seed();
 
     // Iniciar servidor
