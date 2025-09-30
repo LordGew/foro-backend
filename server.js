@@ -1,10 +1,8 @@
-// server.js
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const helmet = require('helmet');
 const session = require('express-session');
-const MongoStore = require('connect-mongo'); // Importa connect-mongo
 const { RateLimiterMemory } = require('rate-limiter-flexible');
 const swaggerUi = require('swagger-ui-express');
 const yaml = require('yamljs');
@@ -41,28 +39,12 @@ const authMiddleware = require('./src/middlewares/authMiddleware');
 // Inicializar app
 const app = express();
 const server = http.createServer(app);
-
-// Configuración de CORS para Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: function (origin, callback) {
-      // Reutiliza la misma lógica de CORS general para Socket.IO
-      const allowedOrigins = [
-        'https://wow-community.com', // Producción
-        'http://localhost:4200',     // Desarrollo local
-        /\.vercel\.app$/,           // Previews de Vercel
-      ];
-
-      if (!origin) return callback(null, true); // Permite peticiones sin origin (Postman, curl)
-
-      const isAllowed = allowedOrigins.some(allowed =>
-        allowed instanceof RegExp ? allowed.test(origin) : origin === allowed
-      );
-
-      callback(null, isAllowed);
-    },
+    origin: ['https://wow-community.com', 'http://localhost:4200'],
     methods: ['GET', 'POST'],
-    credentials: true, // Importante para Socket.IO
+    credentials: true,
+    allowedHeaders: ['Authorization', 'Content-Type']
   }
 });
 
@@ -86,13 +68,13 @@ app.use(helmet({
   referrerPolicy: isProduction ? 'no-referrer' : 'origin',
 }));
 
-// CORS configurado correctamente para todas las rutas HTTP
+// CORS configurado correctamente
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
-      'https://wow-community.com', // Producción
-      'http://localhost:4200',     // Desarrollo local
-      /\.vercel\.app$/,           // Previews de Vercel
+      'https://wow-community.com',
+      'http://localhost:4200',
+      /\.vercel\.app$/,
     ];
 
     // Permite peticiones sin origin (Postman, curl, etc.)
@@ -104,7 +86,7 @@ const corsOptions = {
 
     callback(null, isAllowed);
   },
-  credentials: true, // Importante para enviar cookies/headers de autenticación
+  credentials: true,
 };
 
 app.use(cors(corsOptions));
@@ -114,24 +96,17 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Sesiones - AHORA CON CONNECT-MONGO
+// Sesiones
 const isSecure = isProduction;
 app.use(
   session({
     secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || 'fallback-secret-for-dev',
-    resave: false, // Recomendado false
-    saveUninitialized: false, // Recomendado false
-    store: MongoStore.create({
-      mongoUrl: process.env.MONGO_URI, // Usa la misma URI de tu base de datos
-      // Opciones adicionales de connect-mongo (opcional)
-      // touchAfter: 24 * 3600, // tiempo en segundos para no actualizar sesión si no ha cambiado
-      // ttl: 14 * 24 * 60 * 60, // tiempo de vida de la sesión en segundos (14 días)
-    }),
+    resave: false,
+    saveUninitialized: false,
     cookie: {
-      secure: isSecure, // true solo en HTTPS (Render usa HTTPS)
-      sameSite: isProduction ? 'none' : 'lax', // 'none' para CORS con credenciales en prod, 'lax' en dev
-      maxAge: 24 * 60 * 60 * 1000, // 24 horas
-      httpOnly: true // Impide que JS acceda a la cookie (más seguro)
+      secure: isSecure,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
     },
   })
 );
@@ -264,13 +239,6 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/admin', adminRoutes);
-
-// --- NUEVA RUTA PARA OBTENER RESPUESTAS POR POST ID (CORRIGE EL ERROR DE RUTA) ---
-// Esta ruta coincide con la llamada del frontend: GET /api/posts/{id}/replies
-// Importamos getReplies desde el controlador de replies
-const replyController = require('./src/controllers/replyController'); // Asegúrate de que la ruta sea correcta
-app.get('/api/posts/:postId/replies', authMiddleware, replyController.getReplies);
-// --- FIN NUEVA RUTA ---
 
 // Rate limiting
 const ratePoints = isProduction ? 50 : 100;
