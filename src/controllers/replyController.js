@@ -4,6 +4,8 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { sanitizeContent } = require('../utils/sanitize');
+const { likePost, dislikePost } = require('./postController');
+
 
 // Función para añadir XP por crear una respuesta (línea ~18)
 const addReplyXp = async (userId) => {
@@ -409,4 +411,11 @@ module.exports = {
   toggleLike,
   toggleDislike,
   deleteReplyByAdmin,
+  removeDislikeXp,
+  addDislikeXp,
+  addLikeXp,
+  addReplyXp,
+  likePost,
+  dislikePost
+  
 };

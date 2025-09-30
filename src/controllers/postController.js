@@ -399,12 +399,16 @@ const likePost = async (req, res) => {
     res.json(updatedPost);
   } catch (err) {
     console.error('Error al manejar like en post:', err.message);
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token inválido o expirado', error: 'invalid_token' });
+    }
     res.status(500).json({ 
       message: 'Error interno del servidor',
       error: err.message 
     });
   }
 };
+
 const dislikePost = async (req, res) => {
   try {
     console.log('Dislike request - User:', req.user ? { userId: req.user.userId, role: req.user.role, vip: req.user.vip } : 'undefined', 'Post ID:', req.params.id);
@@ -426,17 +430,13 @@ const dislikePost = async (req, res) => {
     const dislikeIndex = post.dislikes.findIndex(dislike => dislike.toString() === userId);
     
     if (dislikeIndex === -1) {
-      // Agregar dislike
       post.dislikes.push(userId);
       await addDislikeXp(post.author.toString());
-      
-      // Si tenía like, quitarlo
       if (likeIndex !== -1) {
         post.likes.splice(likeIndex, 1);
         await removeLikeXp(post.author.toString());
       }
     } else {
-      // Quitar dislike
       post.dislikes.splice(dislikeIndex, 1);
       await removeDislikeXp(post.author.toString());
     }
@@ -445,7 +445,6 @@ const dislikePost = async (req, res) => {
     
     console.log('Post saved after dislike, dislikes count:', post.dislikes.length);
 
-    // Obtener el post actualizado con todas las referencias
     const updatedPost = await Post.findById(req.params.id)
       .populate('author', 'username profileImage')
       .populate('category', 'name')
@@ -456,6 +455,9 @@ const dislikePost = async (req, res) => {
     res.json(updatedPost);
   } catch (err) {
     console.error('Error al manejar dislike en post:', err.message);
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token inválido o expirado', error: 'invalid_token' });
+    }
     res.status(500).json({ 
       message: 'Error interno del servidor',
       error: err.message 
