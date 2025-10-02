@@ -30,7 +30,7 @@ router.get('/count', getPostsCount);
 router.get('/category/:id', authMiddleware, getPostsByCategory);
 
 // Obtener post por ID o slug
-router.get('/:param', authMiddleware, getPostByParam);
+router.get('/:param', getPostByParam);
 
 // Actualizar post
 router.put('/:id', uploadSingleImage, authMiddleware, updatePost);
