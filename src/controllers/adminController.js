@@ -1,4 +1,3 @@
-// src/controllers/adminController.js
 const AdminSettings = require('../models/AdminSettings');
 const User = require('../models/User');
 
@@ -62,9 +61,7 @@ const getUsers = async (req, res) => {
       email: user.email,
       role: user.role,
       xp: user.xp,
-      profileImage: user.profileImage 
-        ? `${process.env.BASE_URL || 'http://localhost:5000'}/uploads/profiles/${user.profileImage}`
-        : null,
+      profileImage: user.profileImage || '', // Devolver profileImage tal como está
       banned: user.banned || false,
       muted: user.muted || false,
       banReason: user.banReason,
