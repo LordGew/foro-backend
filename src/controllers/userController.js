@@ -11,8 +11,13 @@ const Notification = require('../models/Notification');
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
+const cloudinary = require('cloudinary').v2;
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
-
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
 const baseUrl = process.env.BACKEND_URL || 'https://foro-backend-9j93.onrender.com';
 
 // Contar usuarios
@@ -51,7 +56,7 @@ const register = async (req, res) => {
       password, 
       role: 'Player',
       xp: 0,
-      profileImage: null
+     profileImage: ''
     });
     
     await user.save();
@@ -100,7 +105,7 @@ const login = async (req, res) => {
         username: user.username, 
         role: user.role,
         xp: user.xp,
-        profileImage: user.profileImage ? `${baseUrl}/uploads/profiles/${user.profileImage}` : 'https://via.placeholder.com/40'
+       profileImage: user.profileImage || ''
       } 
     });
   } catch (err) {
@@ -408,33 +413,42 @@ const updatePassword = async (req, res) => {
 };
 
 // Update Profile Image
-// Esta función actualiza la foto de perfil del usuario, eliminando la anterior si existe.
 const updateProfileImage = async (req, res) => {
   try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No se subió ninguna imagen' });
+    }
+
     const userId = req.user.userId;
     const user = await User.findById(userId);
-    
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    if (user.profileImage) {
-      const oldImagePath = path.join('public/uploads/profiles', user.profileImage);
-      if (fs.existsSync(oldImagePath)) {
-        fs.unlinkSync(oldImagePath);
-      }
-    }
+    // Subir la imagen a Cloudinary
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { resource_type: 'image', folder: 'profiles' },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      stream.end(req.file.buffer);
+    });
 
-    user.profileImage = req.file.filename;
+    // Guardar la URL completa de Cloudinary
+    user.profileImage = result.secure_url;
     await user.save();
 
+    console.log('Imagen de perfil actualizada:', result.secure_url);
     res.json({ 
       message: 'Foto de perfil actualizada',
-      profileImage: `${baseUrl}/uploads/profiles/${req.file.filename}`
+      profileImage: result.secure_url // Devolver URL completa
     });
   } catch (err) {
-    console.error('Error al actualizar foto de perfil:', err);
-    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
+    console.error('Error al actualizar imagen de perfil:', err);
+    res.status(500).json({ message: 'Error interno del servidor al subir la imagen', error: err.message });
   }
 };
 
@@ -463,7 +477,7 @@ const searchUsers = async (req, res) => {
       _id: user._id,
       username: user.username,
       name: user.name,
-      profileImage: user.profileImage ? `${baseUrl}/uploads/profiles/${user.profileImage}` : null
+     profileImage: user.profileImage || ''
     }));
 
     res.status(200).json(normalizedUsers);
