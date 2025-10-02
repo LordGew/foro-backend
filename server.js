@@ -17,6 +17,7 @@ const seed = require('./seed');
 // Cargar variables de entorno
 dotenv.config();
 
+const cloudinary = require('cloudinary').v2;
 // Verificar Stripe en producción
 const isProduction = process.env.NODE_ENV === 'production';
 if (isProduction && !process.env.STRIPE_SECRET_KEY) {
@@ -76,18 +77,22 @@ const corsOptions = {
       'http://localhost:4200',
       /\.vercel\.app$/,
     ];
-
-    // Permite peticiones sin origin (Postman, curl, etc.)
     if (!origin) return callback(null, true);
-
     const isAllowed = allowedOrigins.some(allowed =>
       allowed instanceof RegExp ? allowed.test(origin) : origin === allowed
     );
-
     callback(null, isAllowed);
   },
   credentials: true,
+  allowedHeaders: [
+    'Authorization',
+    'Content-Type',
+    'Accept',
+    'X-Requested-With'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 };
+
 
 app.use(cors(corsOptions));
 
@@ -95,6 +100,13 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // Sesiones
 const isSecure = isProduction;
