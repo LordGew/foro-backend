@@ -789,7 +789,36 @@ const acceptRequest = async (req, res) => {
     res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 };
+// Función para limpiar profileImage al iniciar el servidor
+const cleanProfileImages = async () => {
+  try {
+    const users = await User.find({ profileImage: { $exists: true, $ne: '' } });
+    let cleanedCount = 0;
+    for (const user of users) {
+      if (user.profileImage && !user.profileImage.startsWith('https://res.cloudinary.com/')) {
+        if (user.profileImage.includes('/uploads/profiles/')) {
+          const cloudinaryUrl = user.profileImage.match(/https:\/\/res\.cloudinary\.com\/.*/)?.[0];
+          user.profileImage = cloudinaryUrl || '';
+          await user.save();
+          console.log(`✅ profileImage corregido para usuario ${user._id}: ${user.profileImage}`);
+          cleanedCount++;
+        } else {
+          console.warn(`Usuario ${user._id} tiene profileImage inválido: ${user.profileImage}`);
+          user.profileImage = '';
+          await user.save();
+          console.log(`✅ profileImage reseteado para usuario ${user._id}`);
+          cleanedCount++;
+        }
+      }
+    }
+    console.log(`✅ Limpieza de profileImage completada. Usuarios corregidos: ${cleanedCount}`);
+  } catch (err) {
+    console.error('❌ Error en limpieza de profileImage:', err);
+  }
+};
 
+// Ejecutar limpieza al iniciar el servidor
+cleanProfileImages();
 module.exports = { 
   register, 
   login, 

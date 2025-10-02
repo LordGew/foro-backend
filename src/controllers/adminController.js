@@ -61,7 +61,7 @@ const getUsers = async (req, res) => {
       email: user.email,
       role: user.role,
       xp: user.xp,
-      profileImage: user.profileImage || '', // Devolver profileImage tal como está
+      profileImage: user.profileImage || '', // Devolver sin concatenar, solo Cloudinary o ''
       banned: user.banned || false,
       muted: user.muted || false,
       banReason: user.banReason,
