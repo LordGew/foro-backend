@@ -170,7 +170,7 @@ const getPostByParam = async (req, res) => {
     // Poblar todos los campos en una sola llamada a populate con un array
     await post.populate([
       { path: 'author', select: 'username profileImage postCount replyCount xp _id' },
-      { path: 'category', select: 'name' },
+      { path: 'category', select: 'name slug' },
       {
         path: 'replies',
         populate: [

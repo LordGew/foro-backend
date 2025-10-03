@@ -40,17 +40,42 @@ const deleteCategory = async (req, res) => {
 };
 
 // 🔥 Nuevo: Obtener una sola categoría por ID
-const getCategoryById = async (req, res) => {
+//const getCategoryById = async (req, res) => {
+  //try {
+   // const category = await Category.findById(req.params.id);
+   // if (!category) {
+    //  return res.status(404).json({ message: 'Categoría no encontrada' });
+   // }
+   // res.json(category);
+ // } catch (err) {
+   // res.status(500).json({ message: err.message });
+ // }
+//};
+// Obtener categoría por ID o slug
+const getCategoryByParam = async (req, res) => {
   try {
-    const category = await Category.findById(req.params.id);
+    const param = req.params.param;
+    console.log('Procesando categoría por param:', param); // Depuración
+
+    let category;
+    if (mongoose.Types.ObjectId.isValid(param)) {
+      // Si es un ID válido, buscar por ID
+      category = await Category.findById(param);
+    } else {
+      // Si no, buscar por slug
+      category = await Category.findOne({ slug: param });
+    }
+
     if (!category) {
       return res.status(404).json({ message: 'Categoría no encontrada' });
     }
+
     res.json(category);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Error al obtener categoría por param:', err);
+    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
   }
 };
 
 
-module.exports = { createCategory, getCategories, updateCategory, deleteCategory, getCategoryById };
+module.exports = { createCategory, getCategories, updateCategory, deleteCategory, getCategoryByParam };
