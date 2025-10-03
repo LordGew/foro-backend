@@ -464,46 +464,6 @@ const dislikePost = async (req, res) => {
     });
   }
 };
-const getPostsByCategory = async (req, res) => {
-  try {
-    const { id } = req.params;
-    console.log('getPostsByCategory - User:', req.user ? { userId: req.user.userId, role: req.user.role, vip: req.user.vip } : 'No user', 'Category ID:', id);
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'ID de categoría inválido' });
-    }
-
-    const category = await Category.findById(id);
-    if (!category) {
-      return res.status(404).json({ message: 'Categoría no encontrada' });
-    }
-
-    // Verificar acceso para categorías VIP
-    if (category.name.toUpperCase() === 'VIP' && !req.user) {
-      console.log('Acceso denegado: usuario no autenticado');
-      return res.status(401).json({ message: 'Autenticación requerida' });
-    }
-
-    const authorized = req.user && (req.user.vip || req.user.role === 'Admin' || req.user.role === 'GameMaster');
-    if (category.name.toUpperCase() === 'VIP' && !authorized) {
-      console.log('Acceso denegado a VIP category para user:', req.user?.userId || 'anonymous');
-      return res.status(403).json({ message: 'Acceso denegado a categoría VIP' });
-    }
-
-    const posts = await Post.find({ category: id })
-      .populate('author', 'username profileImage')
-      .populate('category', 'name')
-      .sort({ createdAt: -1 });
-
-    console.log(`Posts cargados para categoría ${id}: ${posts.length}`);
-    res.json(posts);
-  } catch (err) {
-    console.error('Error al obtener posts por categoría:', err);
-    res.status(500).json({ message: 'Error al obtener posts por categoría' });
-  }
-};
-
-
 
 const getPostsCount = async (req, res) => {
   try {
@@ -608,7 +568,6 @@ module.exports = {
   likePost,
   dislikePost,
   addPostXp,
-  getPostsByCategory,
   getPostsCount,
   deletePostByAdmin,
   getPostByParam,
