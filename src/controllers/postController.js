@@ -543,7 +543,63 @@ const deletePostByAdmin = async (req, res) => {
     });
   }
 };
+const getPostsByCategoryParam = async (req, res) => {
+  try {
+    const param = req.params.param;
+    console.log('Procesando posts por categoría:', param);
 
+    let category;
+    if (mongoose.Types.ObjectId.isValid(param)) {
+      category = await Category.findById(param);
+    } else {
+      category = await Category.findOne({ slug: param });
+    }
+
+    if (!category) {
+      console.log('Categoría no encontrada para param:', param);
+      return res.status(404).json({ message: 'Categoría no encontrada' });
+    }
+
+    console.log('Categoría encontrada:', category.name, 'ID:', category._id);
+
+    const posts = await Post.find({ category: category._id })
+      .populate([
+        { 
+          path: 'author', 
+          select: 'username profileImage postCount replyCount xp _id',
+          transform: (doc) => {
+            if (doc.profileImage && !doc.profileImage.startsWith('http')) {
+              doc.profileImage = `https://res.cloudinary.com/duqywugjo/image/upload/v1759376255/profiles/${doc.profileImage}`;
+            }
+            return doc;
+          }
+        },
+        { path: 'category', select: 'name slug' },
+        {
+          path: 'replies',
+          populate: [
+            { path: 'author', select: 'username profileImage _id' },
+            { path: 'likes', select: 'username' },
+            { path: 'dislikes', select: 'username' },
+            { path: 'parentReply', populate: { path: 'author', select: 'username profileImage _id' } }
+          ],
+          options: { sort: { createdAt: 1 } }
+        },
+        { path: 'likes', select: 'username profileImage' },
+        { path: 'dislikes', select: 'username profileImage' }
+      ]);
+
+    const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
+    if (category.name.toUpperCase() === 'VIP' && !authorized) {
+      return res.status(403).json({ message: 'Acceso denegado a contenido VIP' });
+    }
+
+    res.json(posts);
+  } catch (err) {
+    console.error('Error al obtener posts por categoría:', err);
+    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
+  }
+};
 module.exports = { 
   createPost, 
   getPosts, 
@@ -556,5 +612,6 @@ module.exports = {
   getPostsCount,
   deletePostByAdmin,
   getPostByParam,
-  removeDislikeXp
+  removeDislikeXp,
+  getPostsByCategoryParam
 };
