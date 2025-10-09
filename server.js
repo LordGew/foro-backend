@@ -73,8 +73,7 @@ app.use(helmet({
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
-      'https://wow-community.com',
-      'http://localhost:4200',
+      'https://wow-community.com', 'http://localhost:4200',
       /\.vercel\.app$/,
     ];
     if (!origin) return callback(null, true);

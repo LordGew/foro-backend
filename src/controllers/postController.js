@@ -510,8 +510,10 @@ const getPostsByCategoryParam = async (req, res) => {
 
     let category;
     if (mongoose.Types.ObjectId.isValid(param)) {
+      console.log('Buscando categoría por ID:', param);
       category = await Category.findById(param);
     } else {
+      console.log('Buscando categoría por slug:', param);
       category = await Category.findOne({ slug: param });
     }
 
@@ -528,7 +530,7 @@ const getPostsByCategoryParam = async (req, res) => {
           path: 'author', 
           select: 'username profileImage postCount replyCount xp _id',
           transform: (doc) => {
-            if (doc.profileImage && !doc.profileImage.startsWith('http')) {
+            if (doc && doc.profileImage && !doc.profileImage.startsWith('http')) {
               doc.profileImage = `https://res.cloudinary.com/duqywugjo/image/upload/v1759376255/profiles/${doc.profileImage}`;
             }
             return doc;
@@ -547,19 +549,24 @@ const getPostsByCategoryParam = async (req, res) => {
         },
         { path: 'likes', select: 'username profileImage' },
         { path: 'dislikes', select: 'username profileImage' }
-      ]);
+      ])
+      .sort({ createdAt: -1 });
 
     const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
     if (category.name.toUpperCase() === 'VIP' && !authorized) {
+      console.log('Acceso denegado a categoría VIP para usuario:', req.user ? req.user.userId : 'anónimo');
       return res.status(403).json({ message: 'Acceso denegado a contenido VIP' });
     }
 
+    console.log(`Posts encontrados: ${posts.length} para categoría ${category.name}`);
     res.json(posts);
   } catch (err) {
     console.error('Error al obtener posts por categoría:', err);
     res.status(500).json({ message: 'Error interno del servidor', error: err.message });
   }
+  
 };
+
 module.exports = { 
   createPost, 
   getPosts, 
