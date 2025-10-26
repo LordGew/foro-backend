@@ -11,7 +11,7 @@ const {
   deletePost,
   likePost,
   dislikePost,
-  getPostsByCategory,
+  getPostsByCategoryParam,
   getPostsCount,
   deletePostByAdmin,
   getPostByParam,
@@ -28,7 +28,7 @@ router.get('/', getPosts);
 router.get('/count', getPostsCount);
 
 // Obtener posts por categoría
-router.get('/category/:param', authMiddleware, getPostsByCategoryParam);
+router.get('/category/:id', authMiddleware, getPostsByCategory);
 
 // Obtener post por ID o slug
 router.get('/:param', getPostByParam);

@@ -125,6 +125,15 @@ app.use(
 // Archivos estáticos (en desarrollo y producción)
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 app.use('/public', express.static(path.join(__dirname, 'public')));
+// Servir sitemap.xml y robots.txt desde la raíz del dominio
+app.get('/sitemap.xml', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
+});
+
+app.get('/robots.txt', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'robots.txt'));
+});
+
 
 // Rutas de Stripe
 if (stripe) {
@@ -300,6 +309,12 @@ app.use((err, req, res, next) => {
 // Iniciar servidor con seed
 const startServer = async () => {
   try {
+    // Guard: require MONGO_URI to be set for startup
+    if (!process.env.MONGO_URI) {
+      console.error('❌ FATAL: MONGO_URI no definido. Por favor configura MONGO_URI en tu .env o en las variables de entorno.');
+      process.exit(1);
+    }
+
     // Conectar a MongoDB
     await connectDB();
     console.log('✅ MongoDB connected');
