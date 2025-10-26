@@ -126,13 +126,7 @@ app.use(
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 // Servir sitemap.xml y robots.txt desde la raíz del dominio
-app.get('/sitemap.xml', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
-});
-
-app.get('/robots.txt', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'robots.txt'));
-});
+app.use(express.static(path.join(__dirname, 'public')));
 
 
 // Rutas de Stripe
