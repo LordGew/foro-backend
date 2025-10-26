@@ -14,8 +14,7 @@ const {
   getPostsByCategoryParam,
   getPostsCount,
   deletePostByAdmin,
-  getPostByParam,
-  getPostsByCategoryParam
+  getPostByParam
 } = require('../controllers/postController');
 
 // Crear post (upload primero, luego auth)
@@ -28,7 +27,7 @@ router.get('/', getPosts);
 router.get('/count', getPostsCount);
 
 // Obtener posts por categoría
-router.get('/category/:id', authMiddleware, getPostsByCategory);
+router.get('/category/:id', authMiddleware, getPostsByCategoryParam);
 
 // Obtener post por ID o slug
 router.get('/:param', getPostByParam);
