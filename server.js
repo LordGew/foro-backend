@@ -246,6 +246,7 @@ const messageRoutes = require('./src/routes/messageRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const vipRoutes = require('./src/routes/vipRoutes');
 const referralRoutes = require('./src/routes/referralRoutes');
+const gameRoutes = require('./src/routes/gameRoutes');
 
 app.use('/api/users', userRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -257,6 +258,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/vip', vipRoutes);
 app.use('/api/referrals', referralRoutes);
+app.use('/api/games', gameRoutes);
 
 // Rate limiting
 const ratePoints = isProduction ? 50 : 100;

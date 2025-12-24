@@ -146,6 +146,16 @@ const UserSchema = new mongoose.Schema({
   resetPasswordExpires: { 
     type: Date 
   },
+  // Juego preferido del usuario
+  preferredGame: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Game',
+    default: null
+  },
+  hasSelectedGame: {
+    type: Boolean,
+    default: false
+  },
   // Sistema de Puntos de Referidos
   referralPoints: {
     type: Number,

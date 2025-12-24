@@ -6,6 +6,7 @@ const Category = require('./src/models/Category');
 const AdminSettings = require('./src/models/AdminSettings');
 const connectDB = require('./src/config/db');
 const seedRewards = require('./src/seeds/rewardsSeed');
+const seedGames = require('./src/seeds/gamesSeed');
 
 require('dotenv').config();
 
@@ -33,26 +34,8 @@ const seed = async () => {
       console.log('ℹ️ Usuario Admin ya existe (por email o username)');
     }
 
-    // --- 2. Crear categorías si no existen ---
-    const defaultCategories = [
-      'Noticias y Comunidad',
-      'Discusión General',
-      'Guías y Tutoriales',
-      'Servidores Privados',
-      'Descargas y Recursos',
-      'Soporte Técnico',
-      'Desarrollo y Emulación',
-      'Mercado e Intercambios',
-    ];
-
-    const existingCategories = await Category.find({});
-    if (existingCategories.length === 0) {
-      const categoriesToInsert = defaultCategories.map(name => ({ name }));
-      await Category.insertMany(categoriesToInsert);
-      console.log('✅ Categorías iniciales creadas');
-    } else {
-      console.log(`ℹ️ Ya existen ${existingCategories.length} categorías`);
-    }
+    // --- 2. Crear juegos y categorías iniciales ---
+    await seedGames();
 
     // --- 3. Crear configuración de administración si no existe ---
     const existingSettings = await AdminSettings.findOne({});

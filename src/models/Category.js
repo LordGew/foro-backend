@@ -5,16 +5,36 @@ const CategorySchema = new mongoose.Schema({
   name: { 
     type: String, 
     required: true, 
-    unique: true, 
     trim: true 
   },
   slug: {
     type: String,
-    unique: true,
     lowercase: true,
     index: true,
   },
+  game: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Game',
+    required: true,
+    index: true
+  },
+  description: {
+    type: String,
+    default: ''
+  },
+  order: {
+    type: Number,
+    default: 0
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
 }, { timestamps: true });
+
+// Índice compuesto: nombre único por juego
+CategorySchema.index({ name: 1, game: 1 }, { unique: true });
+CategorySchema.index({ slug: 1, game: 1 }, { unique: true });
 
 // Generar slug antes de guardar
 CategorySchema.pre('save', function (next) {
