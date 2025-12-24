@@ -20,6 +20,51 @@ cloudinary.config({
 })
 const baseUrl = process.env.BACKEND_URL || 'https://foro-backend-9j93.onrender.com';
 
+// Refresh Token
+// Esta función regenera el token JWT con los datos actuales del usuario desde la base de datos
+const refreshToken = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Obtener datos actualizados del usuario desde la BD
+    const user = await User.findById(userId).select('username email role vip vipExpiresAt profileImage');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    // Generar nuevo token con datos actualizados
+    const token = jwt.sign(
+      { 
+        userId: user._id.toString(),
+        username: user.username,
+        role: user.role,
+        vip: user.vip
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    console.log(`🔄 Token refrescado para usuario ${user.username} (${user.role})`);
+    
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        vip: user.vip,
+        vipExpiresAt: user.vipExpiresAt,
+        profileImage: user.profileImage
+      }
+    });
+  } catch (err) {
+    console.error('Error al refrescar token:', err);
+    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
+  }
+};
+
 // Contar usuarios
 // Esta función cuenta el número total de usuarios en la base de datos y devuelve el conteo.
 const getUsersCount = async (req, res) => {
@@ -866,5 +911,6 @@ module.exports = {
   handleStripeWebhook,
   unblockUser,
   acceptRequest,
-  cleanProfileImages
+  cleanProfileImages,
+  refreshToken
 };

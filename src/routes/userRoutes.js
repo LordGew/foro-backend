@@ -23,7 +23,8 @@ const {
   processVipPayment,
   createPaymentIntent,
   handleStripeWebhook,
-  unblockUser
+  unblockUser,
+  refreshToken
 } = require('../controllers/userController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const rbacMiddleware = require('../middlewares/rbacMiddleware');
@@ -58,9 +59,9 @@ router.get('/search', searchUsers);
 
 // Perfil y seguridad (con auth - REMOVIDO: csrfProtection)
 router.get('/profile', authMiddleware, getUserProfile);
+router.post('/refresh-token', authMiddleware, refreshToken);  // Refresh token con datos actuales
 router.patch('/update-password', authMiddleware, updatePassword);  // REMOVIDO: csrfProtection
 router.put('/profile', authMiddleware, updateProfile);  // REMOVIDO: csrfProtection
-
 
 // Admin: gestión de usuarios (con RBAC - REMOVIDO: csrfProtection)
 router.put('/user/:id/role', authMiddleware, rbacMiddleware('Admin'), changeRole);  // REMOVIDO: csrfProtection
