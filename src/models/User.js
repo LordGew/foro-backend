@@ -145,6 +145,61 @@ const UserSchema = new mongoose.Schema({
   },
   resetPasswordExpires: { 
     type: Date 
+  },
+  // Sistema de Puntos de Referidos
+  referralPoints: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  referralCode: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  totalReferrals: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  // Recompensas adquiridas
+  ownedRewards: [{
+    rewardId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RewardItem',
+      required: true
+    },
+    purchasedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  activeRewards: {
+    emoji: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RewardItem',
+      default: null
+    },
+    title: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RewardItem',
+      default: null
+    },
+    theme: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RewardItem',
+      default: null
+    },
+    frame: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RewardItem',
+      default: null
+    }
   }
 },
 {

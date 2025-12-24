@@ -5,6 +5,7 @@ const User = require('./src/models/User');
 const Category = require('./src/models/Category');
 const AdminSettings = require('./src/models/AdminSettings');
 const connectDB = require('./src/config/db');
+const seedRewards = require('./src/seeds/rewardsSeed');
 
 require('dotenv').config();
 
@@ -66,6 +67,9 @@ const seed = async () => {
     } else {
       console.log('ℹ️ Configuración ya existe');
     }
+
+    // --- 4. Crear recompensas iniciales ---
+    await seedRewards();
 
     console.log('✅ Seed completado con éxito');
   } catch (err) {
