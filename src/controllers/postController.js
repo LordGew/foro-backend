@@ -505,7 +505,7 @@ const deletePostByAdmin = async (req, res) => {
 };
 const getPostsByCategoryParam = async (req, res) => {
   try {
-    const param = req.params.param;
+    const param = req.params.id || req.params.param;
     console.log('Procesando posts por categoría:', param);
 
     let category;
