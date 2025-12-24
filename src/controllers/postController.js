@@ -187,9 +187,18 @@ const getPostByParam = async (req, res) => {
 
     // FIX: Verificar acceso a post VIP
     const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
+    console.log(' Verificación acceso VIP (post individual):', {
+      userId: req.user?.userId,
+      role: req.user?.role,
+      vip: req.user?.vip,
+      categoryName: post.category?.name,
+      authorized: authorized
+    });
     if (post.category.name === 'VIP' && !authorized) {
+      console.log(' ACCESO DENEGADO - Usuario no autorizado para contenido VIP');
       return res.status(403).json({ message: 'Acceso denegado a contenido VIP' });
     }
+    console.log(' Acceso VIP concedido');
 
     res.json(post);
   } catch (err) {
@@ -553,10 +562,18 @@ const getPostsByCategoryParam = async (req, res) => {
       .sort({ createdAt: -1 });
 
     const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
+    console.log(' Verificación acceso VIP (categoría):', {
+      userId: req.user?.userId,
+      role: req.user?.role,
+      vip: req.user?.vip,
+      categoryName: category.name,
+      authorized: authorized
+    });
     if (category.name.toUpperCase() === 'VIP' && !authorized) {
-      console.log('Acceso denegado a categoría VIP para usuario:', req.user ? req.user.userId : 'anónimo');
+      console.log(' ACCESO DENEGADO - Usuario no autorizado para categoría VIP');
       return res.status(403).json({ message: 'Acceso denegado a contenido VIP' });
     }
+    console.log(' Acceso VIP a categoría concedido');
 
     console.log(`Posts encontrados: ${posts.length} para categoría ${category.name}`);
     res.json(posts);
