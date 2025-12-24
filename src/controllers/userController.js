@@ -492,6 +492,7 @@ const searchUsers = async (req, res) => {
 const activateVip = async (req, res) => {
   try {
     const { duration, userId } = req.body;
+    const VIPBenefit = require('../models/VIPBenefit');
     
     // Determinar qué userId usar: el proporcionado (para admins) o el del usuario autenticado
     const targetUserId = userId && req.user.role === 'Admin' ? userId : req.user.userId;
@@ -504,16 +505,43 @@ const activateVip = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
     
     let expiresAt;
+    let vipTier = 'basic';
     switch (duration) {
-      case 'bimonthly': expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); break;
-      case 'year': expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); break;
-      case 'lifetime': expiresAt = null; break;
-      default: expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+      case 'bimonthly': 
+        expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+        vipTier = 'basic';
+        break;
+      case 'year': 
+        expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+        vipTier = 'premium';
+        break;
+      case 'lifetime': 
+        expiresAt = null;
+        vipTier = 'lifetime';
+        break;
+      default: 
+        expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+        vipTier = 'basic';
     }
+    
     user.vip = true;
     user.vipExpiresAt = expiresAt;
+    user.vipTier = vipTier;
+    
+    // Crear o actualizar beneficios VIP
+    let benefits = await VIPBenefit.findOne({ userId: user._id });
+    if (!benefits) {
+      benefits = new VIPBenefit({
+        userId: user._id,
+        customColor: '#FFD700',
+        xpMultiplier: 1.5
+      });
+      await benefits.save();
+      user.vipBenefits = benefits._id;
+    }
+    
     await user.save();
-    res.json({ status: 'vip_activated', expiresAt });
+    res.json({ status: 'vip_activated', expiresAt, vipTier });
   } catch (error) {
     console.error('Error al activar VIP:', error);
     res.status(500).json({ error: 'Error processing VIP activation' });
@@ -622,6 +650,7 @@ const createPaymentIntent = async (req, res) => {
   }
   try {
     const { amount, currency = 'usd', duration, success_url, cancel_url } = req.body;
+    const { createVipTransaction } = require('./vipController');
     
     if (!amount || amount < 50) {
       return res.status(400).json({ error: 'Amount must be at least 50 cents' });
@@ -644,6 +673,10 @@ const createPaymentIntent = async (req, res) => {
       cancel_url,
       metadata: { duration, userId: req.user.userId }
     });
+    
+    // Crear registro de transacción
+    await createVipTransaction(req.user.userId, amount, currency, duration, session.id);
+    
     res.json({ sessionId: session.id });
   } catch (error) {
     console.error('Error creating payment intent:', error);
@@ -656,6 +689,7 @@ const createPaymentIntent = async (req, res) => {
 const handleStripeWebhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const { completeVipTransaction } = require('./vipController');
 
   if (!webhookSecret) {
     return res.status(400).send('Webhook secret missing');
@@ -672,22 +706,12 @@ const handleStripeWebhook = async (req, res) => {
   if (event.type === 'checkout.session.completed') {
     console.log('✅ Pago completado vía webhook:', event.data.object.id);
     const session = event.data.object;
-    const userId = session.metadata.userId;
-    const duration = session.metadata.duration;
-    if (userId) {
-      const user = await User.findById(userId);
-      if (user) {
-        let expiresAt;
-        switch (duration) {
-          case 'bimonthly': expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); break;
-          case 'year': expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); break;
-          case 'lifetime': expiresAt = null; break;
-          default: expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
-        }
-        user.vip = true;
-        user.vipExpiresAt = expiresAt;
-        await user.save();
-      }
+    
+    try {
+      await completeVipTransaction(session.id, session.payment_intent);
+      console.log('✅ Transacción VIP completada exitosamente');
+    } catch (error) {
+      console.error('❌ Error al completar transacción VIP:', error);
     }
   }
 
@@ -817,8 +841,6 @@ const cleanProfileImages = async () => {
   }
 };
 
-// Ejecutar limpieza al iniciar el servidor
-cleanProfileImages();
 module.exports = { 
   register, 
   login, 
@@ -843,5 +865,6 @@ module.exports = {
   createPaymentIntent,
   handleStripeWebhook,
   unblockUser,
-  acceptRequest
+  acceptRequest,
+  cleanProfileImages
 };

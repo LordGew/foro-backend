@@ -45,8 +45,21 @@ const UserSchema = new mongoose.Schema({
   },
   bio: { 
     type: String,
-    maxlength: 500,
+    maxlength: 2000,
     default: ''
+  },
+  bioFormat: {
+    type: String,
+    enum: ['plain', 'markdown'],
+    default: 'plain'
+  },
+  socialLinks: {
+    twitter: { type: String, maxlength: 100 },
+    discord: { type: String, maxlength: 100 },
+    youtube: { type: String, maxlength: 200 },
+    twitch: { type: String, maxlength: 100 },
+    github: { type: String, maxlength: 100 },
+    website: { type: String, maxlength: 200 }
   },
   banned: { 
     type: Boolean, 
@@ -110,23 +123,31 @@ const UserSchema = new mongoose.Schema({
     type: Date, 
     default: Date.now 
   },
-  // En tu archivo User.js (modelo de usuario)
-// Añade estos campos al schema:
-vip: { 
-  type: Boolean, 
-  default: false 
+  vip: { 
+    type: Boolean, 
+    default: false 
+  },
+  vipExpiresAt: { 
+    type: Date, 
+    default: null 
+  },
+  vipTier: { 
+    type: String, 
+    enum: ['none', 'basic', 'premium', 'lifetime'], 
+    default: 'none' 
+  },
+  vipBenefits: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'VIPBenefit' 
+  },
+  resetPasswordToken: { 
+    type: String 
+  },
+  resetPasswordExpires: { 
+    type: Date 
+  }
 },
-vipExpiresAt: { 
-  type: Date, 
-  default: null 
-},
-resetPasswordToken: { 
-  type: String 
-},
-resetPasswordExpires: { 
-  type: Date 
-},
-}, { 
+{
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
