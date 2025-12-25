@@ -81,7 +81,7 @@ const getUsersCount = async (req, res) => {
 // Esta función registra un nuevo usuario, validando los inputs y comprobando si el username o email ya existen.
 const register = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, referralCode } = req.body;
     
     if (!validator.isEmail(email) || !username || password.length < 8) {
       return res.status(400).json({ message: 'Invalid input' });
@@ -95,17 +95,54 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'Email already registered' });
     }
     
+    // Si hay código de referido, verificar que existe
+    let referrer = null;
+    if (referralCode) {
+      referrer = await User.findOne({ referralCode });
+      if (!referrer) {
+        return res.status(400).json({ message: 'Código de referido inválido' });
+      }
+    }
+    
     const user = new User({ 
       username, 
       email, 
       password, 
       role: 'Player',
       xp: 0,
-     profileImage: ''
+      profileImage: '',
+      referredBy: referrer ? referrer._id : null
     });
     
     await user.save();
-    res.status(201).json({ message: 'User registered' });
+    
+    // Si hay referidor, crear el referido y otorgar puntos
+    if (referrer) {
+      const Referral = require('../models/Referral');
+      
+      const referral = new Referral({
+        referrer: referrer._id,
+        referred: user._id,
+        referralCode: referralCode,
+        pointsAwarded: 100,
+        status: 'completed',
+        completedAt: new Date()
+      });
+      
+      await referral.save();
+      
+      // Actualizar puntos y contador del referidor
+      referrer.totalReferrals += 1;
+      referrer.referralPoints += 100;
+      await referrer.save();
+      
+      console.log(`✅ Referido exitoso: ${username} fue referido por ${referrer.username}. +100 puntos otorgados.`);
+    }
+    
+    res.status(201).json({ 
+      message: 'User registered',
+      referralApplied: !!referrer
+    });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ message: 'Internal Server Error', error: err.message });
