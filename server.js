@@ -260,6 +260,18 @@ app.use('/api/vip', vipRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/games', gameRoutes);
 
+// Endpoint temporal para ejecutar seed de juegos (ELIMINAR DESPUÉS DE USAR)
+app.post('/api/admin/seed-games', async (req, res) => {
+  try {
+    const seedGames = require('./src/seeds/gamesSeed');
+    await seedGames();
+    res.json({ success: true, message: 'Juegos y categorías creados exitosamente' });
+  } catch (error) {
+    console.error('Error en seed:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Rate limiting
 const ratePoints = isProduction ? 50 : 100;
 const rateLimiter = new RateLimiterMemory({ points: ratePoints, duration: 60 });
