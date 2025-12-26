@@ -14,9 +14,21 @@ const createCategory = async (req, res) => {
 
 const getCategories = async (req, res) => {
   try {
-    const categories = await Category.find();
+    // Obtener el parámetro de juego desde query params
+    const { game } = req.query;
+    
+    // Construir el filtro
+    const filter = {};
+    if (game) {
+      filter.game = game;
+      console.log(' Filtrando categorías por juego:', game);
+    }
+    
+    const categories = await Category.find(filter).populate('game', 'name icon color');
+    console.log(` Categorías encontradas: ${categories.length}`);
     res.json(categories);
   } catch (err) {
+    console.error('Error al obtener categorías:', err);
     res.status(500).json({ message: err.message });
   }
 };

@@ -252,7 +252,7 @@ const deletePost = async (req, res) => {
 
 const getPosts = async (req, res) => {
   try {
-    const { category, author, dateFrom, dateTo, search } = req.query;
+    const { category, author, dateFrom, dateTo, search, game } = req.query;
     let query = {};
     
     if (category) query.category = category;
@@ -271,11 +271,31 @@ const getPosts = async (req, res) => {
       ];
     }
 
-    const posts = await Post.find(query)
+    // NUEVO: Filtrar por juego si se proporciona
+    let posts;
+    if (game) {
+      console.log('Filtrando posts por juego:', game);
+      // Primero obtener las categorías del juego
+      const categories = await Category.find({ game: game }).select('_id');
+      const categoryIds = categories.map(cat => cat._id);
+      
+      // Agregar filtro de categorías al query
+      if (categoryIds.length > 0) {
+        query.category = { $in: categoryIds };
+      } else {
+        // Si no hay categorías para este juego, retornar array vacío
+        console.log('No hay categorías para este juego');
+        return res.json([]);
+      }
+    }
+
+    posts = await Post.find(query)
       .populate('author', 'username profileImage _id')
-      .populate('category', 'name')  // FIX: Asegurar populate de category para filtro
+      .populate('category', 'name')
       .sort({ createdAt: -1 })
       .limit(20);
+      
+    console.log(`Posts encontrados: ${posts.length}`);
       
     // FIX: Filtrar posts VIP solo para autorizados (Admin, GameMaster o VIP)
     const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
@@ -476,7 +496,25 @@ const dislikePost = async (req, res) => {
 
 const getPostsCount = async (req, res) => {
   try {
-    const count = await Post.countDocuments({});
+    const { game } = req.query;
+    let query = {};
+    
+    // Filtrar por juego si se proporciona
+    if (game) {
+      console.log('Contando posts por juego:', game);
+      const categories = await Category.find({ game: game }).select('_id');
+      const categoryIds = categories.map(cat => cat._id);
+      
+      if (categoryIds.length > 0) {
+        query.category = { $in: categoryIds };
+      } else {
+        // Si no hay categorías para este juego, retornar 0
+        return res.json({ count: 0 });
+      }
+    }
+    
+    const count = await Post.countDocuments(query);
+    console.log(`Total de posts: ${count}`);
     res.json({ count });
   } catch (err) {
     console.error('Error al contar posts:', err);
