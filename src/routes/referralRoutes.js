@@ -21,4 +21,8 @@ router.post('/rewards', authMiddleware, rbacMiddleware(['Admin']), referralContr
 router.put('/rewards/:rewardId', authMiddleware, rbacMiddleware(['Admin']), referralController.updateReward);
 router.delete('/rewards/:rewardId', authMiddleware, rbacMiddleware(['Admin']), referralController.deleteReward);
 
+// Nuevas rutas para validación de referidos
+router.get('/check-status', authMiddleware, referralController.checkReferralStatus);
+router.post('/validate-pending', authMiddleware, rbacMiddleware(['Admin']), referralController.validatePendingReferrals);
+
 module.exports = router;
