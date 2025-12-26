@@ -342,6 +342,10 @@ const startServer = async () => {
     const { startVipExpirationNotifier } = require('./src/jobs/vipExpirationNotifier');
     startVipExpirationNotifier();
 
+    // Iniciar cron job de validación de referidos
+    const { startReferralValidator } = require('./src/jobs/referralValidator');
+    startReferralValidator();
+
     // Iniciar servidor
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, '0.0.0.0', () => {

@@ -179,24 +179,30 @@ Authorization: Bearer {token}
 
 ## 🤖 JOB AUTOMÁTICO
 
-### Configuración Recomendada
+### Configuración Implementada ✅
 
-Ejecutar diariamente a las 00:00 UTC:
+El cron job ya está configurado e integrado en el servidor:
 
+**Archivo:** `src/jobs/referralValidator.js`
+**Integración:** `server.js` (líneas 345-347)
+
+**Características:**
+- ✅ Se ejecuta automáticamente al iniciar el servidor
+- ✅ Programado para ejecutarse diariamente a las 00:00 UTC
+- ✅ Logs detallados de cada ejecución
+- ✅ Manejo de errores robusto
+- ✅ Función de validación manual disponible
+
+**Ejecución Manual (para testing):**
 ```javascript
-// Ejemplo con node-cron
-const cron = require('node-cron');
-const referralController = require('./controllers/referralController');
+const { runManualValidation } = require('./src/jobs/referralValidator');
+await runManualValidation();
+```
 
-// Ejecutar todos los días a medianoche
-cron.schedule('0 0 * * *', async () => {
-  console.log('🔄 Ejecutando validación automática de referidos...');
-  try {
-    await referralController.validatePendingReferrals(null, null);
-  } catch (error) {
-    console.error('❌ Error en validación automática:', error);
-  }
-});
+**Detener el cron job:**
+```javascript
+const { stopReferralValidator } = require('./src/jobs/referralValidator');
+stopReferralValidator();
 ```
 
 ---
