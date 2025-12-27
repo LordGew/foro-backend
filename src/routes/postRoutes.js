@@ -27,7 +27,7 @@ router.get('/', getPosts);
 router.get('/count', getPostsCount);
 
 // Obtener posts por categoría
-router.get('/category/:id', authMiddleware, getPostsByCategoryParam);
+router.get('/category/:id', getPostsByCategoryParam);
 
 // Obtener post por ID o slug
 router.get('/:param', getPostByParam);
@@ -53,8 +53,8 @@ router.post('/:id/replies', authMiddleware, (req, res, next) => {
   next();
 }, require('../controllers/replyController').createReply);
 
-// Ruta para obtener respuestas (reenvía a replyRoutes)
-router.get('/:id/replies', authMiddleware, (req, res, next) => {
+// Ruta para obtener respuestas (reenvía a replyRoutes) - Público
+router.get('/:id/replies', (req, res, next) => {
   req.params.postId = req.params.id;
   next();
 }, require('../controllers/replyController').getReplies);
