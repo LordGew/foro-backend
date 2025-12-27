@@ -120,23 +120,27 @@ const register = async (req, res) => {
     if (referrer) {
       const Referral = require('../models/Referral');
       
+      // Crear referido en estado PENDING
       const referral = new Referral({
         referrer: referrer._id,
         referred: user._id,
         referralCode: referralCode,
         pointsAwarded: 100,
-        status: 'completed',
-        completedAt: new Date()
+        status: 'pending',
+        completedAt: null
       });
       
       await referral.save();
       
-      // Actualizar puntos y contador del referidor
+      // NUEVO: Dar 50 puntos inmediatos al nuevo usuario como bienvenida
+      user.referralPoints = 50;
+      await user.save();
+      
+      // Actualizar contador del referidor (los 100 puntos se darán cuando cumpla requisitos)
       referrer.totalReferrals += 1;
-      referrer.referralPoints += 100;
       await referrer.save();
       
-      console.log(`✅ Referido exitoso: ${username} fue referido por ${referrer.username}. +100 puntos otorgados.`);
+      console.log(`✅ Referido creado: ${username} fue referido por ${referrer.username}. Nuevo usuario recibió 50 puntos. Referidor recibirá 100 puntos cuando se cumplan requisitos.`);
     }
     
     res.status(201).json({ 
