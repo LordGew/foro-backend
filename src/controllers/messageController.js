@@ -99,7 +99,7 @@ const editMessage = async (req, res) => {
 const getRequests = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const user = await User.findById(userId).populate('messageRequests', 'username profileImage');
+    const user = await User.findById(userId).populate('messageRequests', 'username profileImage avatar profilePicture status');
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
     res.json(user.messageRequests || []);
   } catch (error) {
@@ -380,7 +380,7 @@ const addReaction = async (req, res) => {
 const getChats = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const user = await User.findById(userId).populate('contacts', 'username profileImage');
+    const user = await User.findById(userId).populate('contacts', 'username profileImage avatar profilePicture status lastSeen');
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
     // Generar chats desde contacts
@@ -389,10 +389,18 @@ const getChats = async (req, res) => {
       const chatId = `${ids[0]}-${ids[1]}`;
       return {
         id: chatId,
-        user: contact,
+        user: {
+          _id: contact._id,
+          username: contact.username,
+          profileImage: contact.profileImage,
+          avatar: contact.avatar,
+          profilePicture: contact.profilePicture,
+          status: contact.status || 'active',
+          lastSeen: contact.lastSeen
+        },
         status: user.mutedChats.includes(chatId) ? 'muted' : 'active',
-        unreadCount: 0,  // Implementa si necesitas
-        lastSnippet: '',  // Query Message si necesitas
+        unreadCount: 0,
+        lastSnippet: '',
         lastMessageAt: new Date()
       };
     });
