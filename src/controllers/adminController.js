@@ -83,6 +83,96 @@ const getUsers = async (req, res) => {
   }
 };
 
+// Aplicar referido manualmente a un usuario específico
+const applyManualReferral = async (req, res) => {
+  try {
+    const { referredUsername, referrerUsername } = req.body;
+    
+    if (!referredUsername || !referrerUsername) {
+      return res.status(400).json({
+        success: false,
+        message: 'Se requieren referredUsername y referrerUsername'
+      });
+    }
+    
+    const Referral = require('../models/Referral');
+    
+    // Buscar usuarios
+    const referred = await User.findOne({ username: referredUsername });
+    const referrer = await User.findOne({ username: referrerUsername });
+    
+    if (!referred) {
+      return res.status(404).json({
+        success: false,
+        message: `Usuario referido "${referredUsername}" no encontrado`
+      });
+    }
+    
+    if (!referrer) {
+      return res.status(404).json({
+        success: false,
+        message: `Usuario referidor "${referrerUsername}" no encontrado`
+      });
+    }
+    
+    // Verificar si ya existe el referido
+    const existingReferral = await Referral.findOne({
+      referrer: referrer._id,
+      referred: referred._id
+    });
+    
+    if (existingReferral) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ya existe un referido entre estos usuarios',
+        referral: existingReferral
+      });
+    }
+    
+    // Crear referido en estado PENDING
+    const referral = new Referral({
+      referrer: referrer._id,
+      referred: referred._id,
+      referralCode: referrer.referralCode || 'MANUAL',
+      pointsAwarded: 100,
+      status: 'pending',
+      completedAt: null
+    });
+    
+    await referral.save();
+    
+    // Dar 50 puntos al usuario referido
+    referred.referralPoints = (referred.referralPoints || 0) + 50;
+    referred.referredBy = referrer._id;
+    await referred.save();
+    
+    // Actualizar contador del referidor
+    referrer.totalReferrals += 1;
+    await referrer.save();
+    
+    console.log(`✅ Referido manual aplicado: ${referredUsername} -> ${referrerUsername}`);
+    
+    res.json({
+      success: true,
+      message: `Referido aplicado exitosamente. ${referredUsername} recibió 50 puntos. ${referrerUsername} recibirá 100 puntos cuando se cumplan requisitos.`,
+      referral: {
+        referred: referredUsername,
+        referrer: referrerUsername,
+        pointsGivenToReferred: 50,
+        pointsPendingForReferrer: 100,
+        status: 'pending'
+      }
+    });
+  } catch (err) {
+    console.error('Error al aplicar referido manual:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+      error: err.message
+    });
+  }
+};
+
 const fixCategoriesGame = async (req, res) => {
   try {
     console.log(' Iniciando reparación de categorías sin juego...');
@@ -166,5 +256,6 @@ module.exports = {
   updateForumSettings, 
   getForumSettings, 
   getUsers,
-  fixCategoriesGame
+  fixCategoriesGame,
+  applyManualReferral
 };

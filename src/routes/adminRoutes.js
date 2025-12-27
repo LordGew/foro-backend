@@ -4,7 +4,8 @@ const {
   updateForumSettings, 
   getForumSettings,
   getUsers,
-  fixCategoriesGame
+  fixCategoriesGame,
+  applyManualReferral
 } = require('../controllers/adminController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const rbacMiddleware = require('../middlewares/rbacMiddleware');
@@ -13,5 +14,6 @@ router.put('/settings', authMiddleware, rbacMiddleware('Admin'), updateForumSett
 router.get('/settings', getForumSettings);
 router.get('/users', authMiddleware, rbacMiddleware('Admin'), getUsers);
 router.post('/fix-categories-game', authMiddleware, rbacMiddleware('Admin'), fixCategoriesGame);
+router.post('/apply-manual-referral', authMiddleware, rbacMiddleware('Admin'), applyManualReferral);
 
 module.exports = router;
