@@ -86,6 +86,22 @@ exports.createGame = async (req, res) => {
     });
     
     await game.save();
+    
+    // Crear automáticamente una categoría "General" para el nuevo juego
+    try {
+      const generalCategory = new Category({
+        name: 'General',
+        description: `Categoría general para ${name}`,
+        game: game._id,
+        order: 0
+      });
+      await generalCategory.save();
+      console.log(`✅ Categoría "General" creada automáticamente para el juego "${name}"`);
+    } catch (categoryError) {
+      console.error('⚠️ Error al crear categoría automática:', categoryError);
+      // No fallar la creación del juego si falla la categoría
+    }
+    
     res.status(201).json(game);
   } catch (error) {
     console.error('Error creating game:', error);
