@@ -1,5 +1,7 @@
 const AdminSettings = require('../models/AdminSettings');
 const User = require('../models/User');
+const Category = require('../models/Category');
+const Game = require('../models/Game');
 
 const updateForumSettings = async (req, res) => {
   try {
@@ -81,8 +83,88 @@ const getUsers = async (req, res) => {
   }
 };
 
+const fixCategoriesGame = async (req, res) => {
+  try {
+    console.log(' Iniciando reparación de categorías sin juego...');
+    
+    // Buscar el juego World of Warcraft
+    const wowGame = await Game.findOne({ name: 'World of Warcraft' });
+    
+    if (!wowGame) {
+      console.error(' No se encontró el juego "World of Warcraft"');
+      const allGames = await Game.find({});
+      return res.status(404).json({
+        success: false,
+        message: 'No se encontró el juego "World of Warcraft"',
+        availableGames: allGames.map(g => ({ id: g._id, name: g.name }))
+      });
+    }
+    
+    console.log(` Juego encontrado: ${wowGame.name} (ID: ${wowGame._id})`);
+    
+    // Buscar categorías sin juego asignado
+    const categoriesWithoutGame = await Category.find({
+      $or: [
+        { game: null },
+        { game: { $exists: false } }
+      ]
+    });
+    
+    console.log(` Categorías sin juego: ${categoriesWithoutGame.length}`);
+    
+    if (categoriesWithoutGame.length === 0) {
+      const allCategories = await Category.find({}).populate('game', 'name');
+      return res.json({
+        success: true,
+        message: 'Todas las categorías ya tienen un juego asignado',
+        categories: allCategories.map(cat => ({
+          name: cat.name,
+          game: cat.game ? cat.game.name : 'SIN JUEGO'
+        }))
+      });
+    }
+    
+    // Actualizar categorías sin juego
+    const result = await Category.updateMany(
+      {
+        $or: [
+          { game: null },
+          { game: { $exists: false } }
+        ]
+      },
+      {
+        $set: { game: wowGame._id }
+      }
+    );
+    
+    console.log(` Actualización completada: ${result.modifiedCount} categorías actualizadas`);
+    
+    // Verificar resultado
+    const updatedCategories = await Category.find({}).populate('game', 'name');
+    
+    res.json({
+      success: true,
+      message: `Se asignó el juego "${wowGame.name}" a ${result.modifiedCount} categorías`,
+      updatedCount: result.modifiedCount,
+      categories: updatedCategories.map(cat => ({
+        name: cat.name,
+        game: cat.game ? cat.game.name : 'SIN JUEGO'
+      }))
+    });
+    
+  } catch (err) {
+    console.error(' Error al reparar categorías:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al reparar categorías',
+      error: err.message
+    });
+  }
+};
+
 module.exports = { 
   updateForumSettings, 
   getForumSettings, 
-  getUsers 
+  getUsers,
+  fixCategoriesGame
 };
