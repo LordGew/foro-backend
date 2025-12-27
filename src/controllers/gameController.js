@@ -92,6 +92,7 @@ exports.createGame = async (req, res) => {
       const generalCategory = new Category({
         name: 'General',
         description: `Categoría general para ${name}`,
+        icon: '💬',
         game: game._id,
         order: 0
       });
@@ -201,7 +202,7 @@ exports.reorderGames = async (req, res) => {
 exports.createGameCategory = async (req, res) => {
   try {
     const { gameId } = req.params;
-    const { name, description } = req.body;
+    const { name, description, icon } = req.body;
     
     if (!name) {
       return res.status(400).json({ message: 'El nombre es requerido' });
@@ -225,6 +226,7 @@ exports.createGameCategory = async (req, res) => {
     const category = new Category({
       name,
       description: description || '',
+      icon: icon || '📁',
       game: gameId,
       order
     });
@@ -241,7 +243,7 @@ exports.createGameCategory = async (req, res) => {
 exports.updateGameCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
-    const { name, description, isActive, order } = req.body;
+    const { name, description, icon, isActive, order } = req.body;
     
     const category = await Category.findById(categoryId);
     if (!category) {
@@ -262,6 +264,7 @@ exports.updateGameCategory = async (req, res) => {
     }
     
     if (description !== undefined) category.description = description;
+    if (icon !== undefined) category.icon = icon;
     if (isActive !== undefined) category.isActive = isActive;
     if (order !== undefined) category.order = order;
     

@@ -22,6 +22,10 @@ const CategorySchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  icon: {
+    type: String,
+    default: '📁'
+  },
   order: {
     type: Number,
     default: 0

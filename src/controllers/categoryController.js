@@ -3,8 +3,14 @@ const Category = require('../models/Category');
 
 const createCategory = async (req, res) => {
   try {
-    const { name } = req.body;
-    const category = new Category({ name });
+    const { name, description, icon, game, order } = req.body;
+    const category = new Category({ 
+      name, 
+      description: description || '',
+      icon: icon || '📁',
+      game,
+      order: order || 0
+    });
     await category.save();
     res.status(201).json(category);
   } catch (err) {
@@ -35,8 +41,16 @@ const getCategories = async (req, res) => {
 
 const updateCategory = async (req, res) => {
   try {
-    const { name } = req.body;
-    const category = await Category.findByIdAndUpdate(req.params.id, { name }, { new: true });
+    const { name, description, icon, order, isActive } = req.body;
+    const updateData = {};
+    
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (icon !== undefined) updateData.icon = icon;
+    if (order !== undefined) updateData.order = order;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    
+    const category = await Category.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json(category);
   } catch (err) {
     res.status(500).json({ message: err.message });
