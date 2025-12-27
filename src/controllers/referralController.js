@@ -55,15 +55,16 @@ exports.getMyReferralCode = async (req, res) => {
  * 
  * 2. REQUISITOS PARA ACREDITACIÓN DE PUNTOS:
  *    - El referido debe crear al menos 1 post O 3 comentarios
- *    - El referido debe permanecer activo por al menos 7 días
+ *    - El referido debe permanecer activo por al menos 2 días (cambiado de 7 días)
  *    - Estado inicial: 'pending' (pendiente de validación)
  *    - Estado final: 'completed' (puntos acreditados)
  * 
  * 3. PUNTOS OTORGADOS:
- *    - 100 puntos por cada referido válido y completado
+ *    - NUEVO USUARIO: 50 puntos inmediatos al registrarse con código de referido
+ *    - REFERIDOR: 100 puntos cuando el referido cumple los requisitos (2 días + actividad)
  * 
  * 4. TIEMPO DE VALIDACIÓN:
- *    - Los puntos se acreditan automáticamente cuando se cumplen todos los requisitos
+ *    - Los puntos del referidor se acreditan automáticamente cuando se cumplen todos los requisitos
  *    - Un job programado verifica diariamente los referidos pendientes
  */
 
@@ -125,10 +126,12 @@ exports.applyReferralCode = async (req, res) => {
     
     // Actualizar usuario referido
     user.referredBy = referrer._id;
+    
+    // NUEVO: Dar 50 puntos inmediatos al nuevo usuario como bienvenida
+    user.referralPoints = (user.referralPoints || 0) + 50;
     await user.save();
     
-    // CAMBIO: No se incrementan los puntos inmediatamente
-    // Los puntos se acreditarán cuando el referido cumpla los requisitos
+    // Los 100 puntos del referidor se acreditarán cuando el referido cumpla los requisitos
     referrer.totalReferrals += 1; // Solo incrementamos el contador de referidos totales
     await referrer.save();
     
@@ -141,13 +144,14 @@ exports.applyReferralCode = async (req, res) => {
     }
     
     res.json({
-      message: 'Código de referido aplicado. Los puntos se acreditarán cuando completes los requisitos de actividad.',
+      message: '¡Bienvenido! Has recibido 50 puntos de regalo. Tu referidor recibirá 100 puntos cuando completes los requisitos de actividad.',
       status: 'pending',
+      pointsReceived: 50,
       requirements: {
         profileComplete: false,
         minimumActivity: 'Crear 1 post o 3 comentarios',
-        minimumDays: 7,
-        pointsToEarn: 100
+        minimumDays: 2,
+        referrerPointsToEarn: 100
       },
       referrer: {
         username: referrer.username,
@@ -456,10 +460,10 @@ exports.validatePendingReferrals = async (req, res) => {
       
       if (!referred || !referrer) continue;
       
-      // Verificar tiempo mínimo (7 días desde el registro)
+      // Verificar tiempo mínimo (2 días desde el registro)
       const daysSinceRegistration = Math.floor((Date.now() - new Date(referred.createdAt)) / (1000 * 60 * 60 * 24));
       
-      if (daysSinceRegistration < 7) {
+      if (daysSinceRegistration < 2) {
         continue; // Aún no cumple el tiempo mínimo
       }
       
@@ -476,7 +480,7 @@ exports.validatePendingReferrals = async (req, res) => {
       const hasMinimumActivity = postCount >= 1 || replyCount >= 3;
       
       // Validar si cumple todos los requisitos
-      if (profileComplete && hasMinimumActivity && daysSinceRegistration >= 7) {
+      if (profileComplete && hasMinimumActivity && daysSinceRegistration >= 2) {
         // ACREDITAR PUNTOS
         referral.status = 'completed';
         referral.completedAt = new Date();
@@ -579,11 +583,11 @@ exports.checkReferralStatus = async (req, res) => {
           }
         },
         minimumDays: {
-          completed: daysSinceRegistration >= 7,
-          description: 'Permanecer activo por 7 días',
+          completed: daysSinceRegistration >= 2,
+          description: 'Permanecer activo por 2 días',
           progress: {
             current: daysSinceRegistration,
-            required: 7
+            required: 2
           }
         }
       },

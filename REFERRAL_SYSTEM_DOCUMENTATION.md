@@ -8,18 +8,19 @@ El sistema de referidos permite a los usuarios invitar amigos y ganar puntos que
 ## 💎 PUNTOS Y RECOMPENSAS
 
 ### Puntos por Referido
-- **100 puntos** por cada referido que complete todos los requisitos
+- **NUEVO USUARIO:** 50 puntos inmediatos al registrarse con código de referido
+- **REFERIDOR:** 100 puntos cuando el referido complete todos los requisitos
 
 ### Estados de Referidos
 1. **Pending (Pendiente)** - El usuario se registró pero aún no cumple los requisitos
-2. **Completed (Completado)** - El referido cumplió todos los requisitos, puntos acreditados
+2. **Completed (Completado)** - El referido cumplió todos los requisitos, puntos acreditados al referidor
 3. **Cancelled (Cancelado)** - El referido no cumplió los requisitos en 30 días
 
 ---
 
 ## ✅ REQUISITOS PARA VALIDACIÓN
 
-Para que un referido sea válido y otorgue puntos, debe cumplir **TODOS** estos requisitos:
+Para que un referido sea válido y otorgue puntos al referidor, debe cumplir **TODOS** estos requisitos:
 
 ### 1. Validaciones Anti-Fraude
 - ❌ **No se permite** usar el propio código de referido
@@ -37,7 +38,7 @@ El referido debe cumplir **AL MENOS UNA** de estas condiciones:
 - Crear **3 comentarios** o más
 
 ### 4. Tiempo Mínimo
-- Permanecer activo por **7 días** desde el registro
+- Permanecer activo por **2 días** desde el registro (cambiado de 7 días)
 
 ---
 
@@ -48,14 +49,15 @@ El referido debe cumplir **AL MENOS UNA** de estas condiciones:
 1. **Usuario A** comparte su código de referido
 2. **Usuario B** se registra usando el código
 3. El sistema crea un referido con estado **"pending"**
-4. **Usuario B** debe completar los requisitos:
+4. **Usuario B** recibe **50 puntos inmediatos** como bienvenida
+5. **Usuario B** debe completar los requisitos:
    - ✅ Perfil completo
    - ✅ Actividad mínima (1 post o 3 comentarios)
-   - ✅ 7 días de actividad
-5. Un **job automático** verifica diariamente los referidos pendientes
-6. Cuando se cumplen todos los requisitos:
+   - ✅ 2 días de actividad
+6. Un **job automático** verifica diariamente los referidos pendientes
+7. Cuando se cumplen todos los requisitos:
    - Estado cambia a **"completed"**
-   - Se acreditan **100 puntos** a **Usuario A**
+   - Se acreditan **100 puntos** a **Usuario A** (referidor)
    - Se envía notificación a **Usuario A**
 
 ### Cancelación Automática
@@ -98,13 +100,14 @@ Content-Type: application/json
 **Respuesta (Éxito):**
 ```json
 {
-  "message": "Código de referido aplicado. Los puntos se acreditarán cuando completes los requisitos de actividad.",
+  "message": "¡Bienvenido! Has recibido 50 puntos de regalo. Tu referidor recibirá 100 puntos cuando completes los requisitos de actividad.",
   "status": "pending",
+  "pointsReceived": 50,
   "requirements": {
     "profileComplete": false,
     "minimumActivity": "Crear 1 post o 3 comentarios",
-    "minimumDays": 7,
-    "pointsToEarn": 100
+    "minimumDays": 2,
+    "referrerPointsToEarn": 100
   },
   "referrer": {
     "username": "UsuarioA",
@@ -140,10 +143,10 @@ Authorization: Bearer {token}
     },
     "minimumDays": {
       "completed": false,
-      "description": "Permanecer activo por 7 días",
+      "description": "Permanecer activo por 2 días",
       "progress": {
-        "current": 3,
-        "required": 7
+        "current": 1,
+        "required": 2
       }
     }
   },
