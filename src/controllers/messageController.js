@@ -596,6 +596,25 @@ const unblockUser = async (req, res) => {
 };
 
 
+// Get Online Users
+const getOnlineUsers = async (req, res) => {
+  try {
+    const io = req.io;
+    if (!io) {
+      return res.status(500).json({ message: 'Socket.IO no disponible' });
+    }
+
+    // Obtener todos los sockets conectados
+    const sockets = await io.fetchSockets();
+    const onlineUsers = sockets.map(socket => socket.userId).filter(Boolean);
+
+    res.json({ onlineUsers: [...new Set(onlineUsers)] });
+  } catch (error) {
+    console.error('Error en getOnlineUsers:', error);
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+  }
+};
+
 // Exports (todas las funciones definidas arriba)
 module.exports = {
   deleteMessage,
@@ -613,5 +632,6 @@ module.exports = {
   sendRequest,
   acceptRequest,
   rejectRequest,
-  unblockUser
+  unblockUser,
+  getOnlineUsers
 };
