@@ -1,12 +1,47 @@
 const mongoose = require('mongoose');
 
-const MessageSchema = new mongoose.Schema({
-  chatId: { type: String, required: true },
-  sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  content: { type: String, required: true },
-  isRead: { type: Boolean, default: false }, // Campo para rastrear si fue leído
-  lastReadAt: { type: Date },
-  reactions: { type: Object, default: {} }
-}, { timestamps: true });
+const messageSchema = new mongoose.Schema({
+  conversation: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Conversation',
+    required: true,
+    index: true
+  },
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  content: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  readBy: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    readAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  type: {
+    type: String,
+    enum: ['text', 'image', 'file'],
+    default: 'text'
+  },
+  deleted: {
+    type: Boolean,
+    default: false
+  }
+}, {
+  timestamps: true
+});
 
-module.exports = mongoose.model('Message', MessageSchema);
+// Índices para búsquedas rápidas
+messageSchema.index({ conversation: 1, createdAt: -1 });
+messageSchema.index({ sender: 1 });
+
+module.exports = mongoose.model('Message', messageSchema);

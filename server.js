@@ -255,6 +255,7 @@ const replyRoutes = require('./src/routes/replyRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const bannerRoutes = require('./src/routes/bannerRoutes');
 const messageRoutes = require('./src/routes/messageRoutes');
+const chatRoutes = require('./src/routes/chatRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const vipRoutes = require('./src/routes/vipRoutes');
 const referralRoutes = require('./src/routes/referralRoutes');
@@ -267,6 +268,7 @@ app.use('/api/replies', replyRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/vip', vipRoutes);
 app.use('/api/referrals', referralRoutes);
@@ -294,15 +296,66 @@ app.use((req, res, next) => {
     .catch(() => res.status(429).json({ message: 'Too Many Requests' }));
 });
 
-// Socket.IO
+// Socket.IO - Sistema de chat en tiempo real
+const onlineUsers = new Map(); // userId -> socketId
+
 io.on('connection', (socket) => {
-  console.log('🔌 User connected:', socket.id);
-  socket.on('join', (userId) => socket.join(userId));
-  socket.on('joinChat', (chatId) => socket.join(chatId));
-  socket.on('message', ({ chatId, msg }) => io.to(chatId).emit('message', { msg }));
-  socket.on('messagesRead', ({ chatId, userId }) => io.to(chatId).emit('messagesRead', { chatId, userId }));
-  socket.on('disconnect', () => console.log('🔌 User disconnected:', socket.id));
+  console.log('🔌 Usuario conectado:', socket.id);
+
+  // Usuario se une con su ID
+  socket.on('join', (userId) => {
+    if (!userId) return;
+    
+    socket.userId = userId;
+    socket.join(userId);
+    onlineUsers.set(userId, socket.id);
+    
+    // Notificar a todos que el usuario está online
+    io.emit('userOnline', userId);
+    console.log(`✅ Usuario ${userId} online`);
+  });
+
+  // Usuario se une a una conversación
+  socket.on('joinConversation', (conversationId) => {
+    if (!conversationId) return;
+    socket.join(`conversation:${conversationId}`);
+    console.log(`📱 Usuario se unió a conversación: ${conversationId}`);
+  });
+
+  // Usuario sale de una conversación
+  socket.on('leaveConversation', (conversationId) => {
+    if (!conversationId) return;
+    socket.leave(`conversation:${conversationId}`);
+  });
+
+  // Usuario está escribiendo
+  socket.on('typing', ({ conversationId, userId }) => {
+    if (!conversationId || !userId) return;
+    socket.to(`conversation:${conversationId}`).emit('userTyping', { conversationId, userId });
+  });
+
+  // Usuario dejó de escribir
+  socket.on('stopTyping', ({ conversationId, userId }) => {
+    if (!conversationId || !userId) return;
+    socket.to(`conversation:${conversationId}`).emit('userStoppedTyping', { conversationId, userId });
+  });
+
+  // Desconexión
+  socket.on('disconnect', () => {
+    if (socket.userId) {
+      onlineUsers.delete(socket.userId);
+      io.emit('userOffline', socket.userId);
+      console.log(`❌ Usuario ${socket.userId} offline`);
+    }
+    console.log('🔌 Usuario desconectado:', socket.id);
+  });
 });
+
+// Middleware para pasar io a las rutas
+io.fetchSockets = async () => {
+  const sockets = await io.fetchSockets();
+  return sockets;
+};
 
 app.use((req, res, next) => {
   req.io = io;
