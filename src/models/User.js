@@ -123,6 +123,10 @@ const UserSchema = new mongoose.Schema({
     type: Date, 
     default: Date.now 
   },
+  lastActivity: {
+    type: Date,
+    default: Date.now
+  },
   vip: { 
     type: Boolean, 
     default: false 

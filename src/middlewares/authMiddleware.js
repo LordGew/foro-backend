@@ -37,7 +37,7 @@ module.exports = async (req, res, next) => {
       });
     }
 
-    const user = await User.findById(decoded.userId).select('username profileImage role vip vipExpiresAt banned');
+    const user = await User.findById(decoded.userId).select('username profileImage role vip vipExpiresAt banned isOnline lastActivity');
     if (!user) {
       return res.status(404).json({ 
         message: 'Usuario no encontrado',
@@ -50,6 +50,15 @@ module.exports = async (req, res, next) => {
         message: 'Estás baneado y no puedes realizar acciones',
         error: 'banned'
       });
+    }
+
+    // Actualizar última actividad y estado online
+    try {
+      user.lastActivity = new Date();
+      user.isOnline = true;
+      await user.save();
+    } catch (updateErr) {
+      console.error('Error al actualizar lastActivity en authMiddleware:', updateErr);
     }
 
     req.user = {

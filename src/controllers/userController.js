@@ -177,6 +177,8 @@ const login = async (req, res) => {
     }
     
     user.isOnline = true;
+    user.lastLogin = new Date();
+    user.lastActivity = new Date();
     await user.save();
 
     const token = jwt.sign({ 
@@ -191,7 +193,7 @@ const login = async (req, res) => {
         username: user.username, 
         role: user.role,
         xp: user.xp,
-       profileImage: user.profileImage || ''
+        profileImage: user.profileImage || ''
       } 
     });
   } catch (err) {
@@ -209,6 +211,7 @@ const logout = async (req, res) => {
       const user = await User.findById(userId);
       if (user) {
         user.isOnline = false;
+        user.lastActivity = new Date();
         await user.save();
       }
     }
@@ -412,7 +415,7 @@ const getUserById = async (req, res) => {
 };
 
 // Get Online Users
-// Esta función obtiene la lista de usuarios online, incluyendo el usuario actual.
+// Esta función obtiene la lista de usuarios activos recientemente y algunas métricas agregadas.
 const getOnlineUsers = async (req, res) => {
   try {
     console.log('Solicitud recibida para obtener usuarios online');
@@ -431,25 +434,49 @@ const getOnlineUsers = async (req, res) => {
       });
     }
 
-    const users = await User.find({ isOnline: true }).select('username _id profileImage role');
-    
-    console.log(`Encontrados ${users.length} usuarios online`);
+    const now = new Date();
+    const ACTIVE_MINUTES = 5;      // Usuarios considerados "en línea" si tuvieron actividad en los últimos 5 minutos
+    const RECENT_MINUTES = 15;     // Métrica adicional para últimos 15 minutos
+
+    const activeSince = new Date(now.getTime() - ACTIVE_MINUTES * 60 * 1000);
+    const recentSince = new Date(now.getTime() - RECENT_MINUTES * 60 * 1000);
+
+    const [activeUsers, recentCount] = await Promise.all([
+      User.find({
+        lastActivity: { $gte: activeSince },
+        banned: false
+      }).select('username _id profileImage role'),
+      User.countDocuments({
+        lastActivity: { $gte: recentSince },
+        banned: false
+      })
+    ]);
     
     const currentUserId = new mongoose.Types.ObjectId(req.user.userId);
-    const currentUserIndex = users.findIndex(u => u._id.toString() === currentUserId.toString());
+    const currentUserIndex = activeUsers.findIndex(u => u._id.toString() === currentUserId.toString());
     
     if (currentUserIndex === -1) {
       try {
         const currentUser = await User.findById(currentUserId).select('username _id profileImage role');
         if (currentUser) {
-          users.unshift(currentUser);
+          activeUsers.unshift(currentUser);
         }
       } catch (userError) {
         console.error('Error al buscar usuario actual:', userError);
       }
     }
+
+    const response = {
+      online: activeUsers,
+      metrics: {
+        activeNow: activeUsers.length,
+        activeLast15m: recentCount
+      }
+    };
+
+    console.log(`Usuarios activos ahora: ${response.metrics.activeNow}, activos últimos 15m: ${response.metrics.activeLast15m}`);
     
-    res.json(users);
+    res.json(response);
   } catch (err) {
     console.error('Error fetching online users:', err);
     res.status(500).json({ 
