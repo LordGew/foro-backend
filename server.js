@@ -87,7 +87,8 @@ const corsOptions = {
     'Authorization',
     'Content-Type',
     'Accept',
-    'X-Requested-With'
+    'X-Requested-With',
+    'x-user-id'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 };
