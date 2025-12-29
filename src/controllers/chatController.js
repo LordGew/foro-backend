@@ -174,16 +174,25 @@ exports.sendMessage = async (req, res) => {
     const populatedMessage = await Message.findById(message._id)
       .populate('sender', 'username avatar profileImage');
 
-    // Emitir evento Socket.IO
+    // Emitir evento Socket.IO a la sala de la conversación
     if (req.io) {
-      const otherParticipant = conversation.participants.find(
-        p => p.toString() !== userId
-      );
-      
-      req.io.to(otherParticipant.toString()).emit('newMessage', {
+      // Emitir a la sala de la conversación
+      req.io.to(`conversation:${conversationId}`).emit('newMessage', {
         conversationId,
         message: populatedMessage
       });
+      
+      // También emitir a cada participante individualmente para actualizar la lista
+      conversation.participants.forEach(participantId => {
+        if (participantId.toString() !== userId) {
+          req.io.to(participantId.toString()).emit('newMessage', {
+            conversationId,
+            message: populatedMessage
+          });
+        }
+      });
+      
+      console.log('📤 Mensaje emitido vía Socket.IO:', conversationId);
     }
 
     res.status(201).json(populatedMessage);
