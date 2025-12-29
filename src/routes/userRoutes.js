@@ -24,6 +24,7 @@ const {
   createPaymentIntent,
   handleStripeWebhook,
   unblockUser,
+  cleanProfileImagesEndpoint,
   refreshToken
 } = require('../controllers/userController');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -165,5 +166,8 @@ router.patch('/update-profile-image', authMiddleware, uploadProfileImageToCloudi
   }
 });
 // --- FIN NUEVO ---
+
+// Ruta para limpiar URLs de imágenes malformadas (solo Admin)
+router.post('/clean-profile-images', authMiddleware, rbacMiddleware('Admin'), cleanProfileImagesEndpoint);
 
 module.exports = router;

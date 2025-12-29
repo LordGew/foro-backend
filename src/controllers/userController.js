@@ -926,8 +926,55 @@ const acceptRequest = async (req, res) => {
     res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 };
-// Función para limpiar profileImage al iniciar el servidor
+
+// Clean Profile Images
+// Esta función limpia las URLs de profileImage que tienen prefijos incorrectos de localhost
 const cleanProfileImages = async () => {
+  try {
+    const users = await User.find({ profileImage: { $exists: true, $ne: null } });
+    
+    let cleanedCount = 0;
+    for (const user of users) {
+      if (user.profileImage && user.profileImage.includes('localhost:5000')) {
+        // Extraer solo la URL de Cloudinary
+        const cloudinaryUrl = user.profileImage.match(/(https:\/\/res\.cloudinary\.com\/.*)/);
+        if (cloudinaryUrl) {
+          user.profileImage = cloudinaryUrl[1];
+          await user.save();
+          cleanedCount++;
+          console.log(`Limpiado: ${user.username} -> ${user.profileImage}`);
+        }
+      }
+    }
+    
+    console.log(`✅ URLs limpiadas: ${cleanedCount} de ${users.length}`);
+    return { cleanedCount, totalUsers: users.length };
+  } catch (error) {
+    console.error('Error limpiando profileImages:', error);
+    throw error;
+  }
+};
+
+// Clean Profile Images Endpoint (Admin only)
+const cleanProfileImagesEndpoint = async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Solo administradores pueden ejecutar esta acción' });
+    }
+
+    const result = await cleanProfileImages();
+    res.json({ 
+      message: 'Limpieza completada',
+      ...result
+    });
+  } catch (error) {
+    console.error('Error en cleanProfileImagesEndpoint:', error);
+    res.status(500).json({ message: 'Error al limpiar imágenes', error: error.message });
+  }
+};
+
+// Función para limpiar profileImage al iniciar el servidor
+const cleanProfileImagesOnStart = async () => {
   try {
     const users = await User.find({ profileImage: { $exists: true, $ne: '' } });
     let cleanedCount = 0;
@@ -980,5 +1027,6 @@ module.exports = {
   unblockUser,
   acceptRequest,
   cleanProfileImages,
+  cleanProfileImagesEndpoint,
   refreshToken
 };
