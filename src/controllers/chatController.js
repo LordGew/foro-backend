@@ -3,6 +3,21 @@ const Message = require('../models/Message');
 const User = require('../models/User');
 const mongoose = require('mongoose');
 
+// Helper para limpiar URLs de Cloudinary
+const cleanImageUrl = (url) => {
+  if (!url) return url;
+  // Si la URL contiene el prefijo localhost malformado, extraer solo la URL de Cloudinary
+  if (url.includes('localhost:5000/uploads/profiles/https://')) {
+    return url.replace(/.*localhost:5000\/uploads\/profiles\//, '');
+  }
+  // Si ya es una URL de Cloudinary limpia, devolverla
+  if (url.startsWith('https://res.cloudinary.com/')) return url;
+  // Intentar extraer URL de Cloudinary con regex
+  const match = url.match(/(https:\/\/res\.cloudinary\.com\/.*)/);
+  if (match) return match[1];
+  return url;
+};
+
 // Obtener todas las conversaciones del usuario
 exports.getConversations = async (req, res) => {
   try {
@@ -35,9 +50,18 @@ exports.getConversations = async (req, res) => {
           status = 'muted';
         }
 
+        // Limpiar URLs de imágenes en participantes
+        const cleanedParticipants = conv.participants
+          .filter(p => p._id.toString() !== userId)
+          .map(p => ({
+            ...p.toObject(),
+            profileImage: cleanImageUrl(p.profileImage),
+            avatar: cleanImageUrl(p.avatar)
+          }));
+
         return {
           _id: conv._id,
-          participants: conv.participants.filter(p => p._id.toString() !== userId),
+          participants: cleanedParticipants,
           lastMessage: conv.lastMessage,
           lastMessageAt: conv.lastMessageAt,
           unreadCount,
@@ -133,7 +157,17 @@ exports.getMessages = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
 
-    res.json(messages.reverse());
+    // Limpiar URLs de imágenes
+    const cleanedMessages = messages.map(msg => {
+      const msgObj = msg.toObject();
+      if (msgObj.sender) {
+        msgObj.sender.profileImage = cleanImageUrl(msgObj.sender.profileImage);
+        msgObj.sender.avatar = cleanImageUrl(msgObj.sender.avatar);
+      }
+      return msgObj;
+    });
+
+    res.json(cleanedMessages.reverse());
   } catch (error) {
     console.error('Error en getMessages:', error);
     res.status(500).json({ message: 'Error al obtener mensajes', error: error.message });
@@ -183,12 +217,19 @@ exports.sendMessage = async (req, res) => {
     const populatedMessage = await Message.findById(message._id)
       .populate('sender', 'username avatar profileImage');
 
+    // Limpiar URLs de imágenes antes de emitir
+    const cleanedMessage = populatedMessage.toObject();
+    if (cleanedMessage.sender) {
+      cleanedMessage.sender.profileImage = cleanImageUrl(cleanedMessage.sender.profileImage);
+      cleanedMessage.sender.avatar = cleanImageUrl(cleanedMessage.sender.avatar);
+    }
+
     // Emitir evento Socket.IO a la sala de la conversación
     if (req.io) {
       // Emitir a la sala de la conversación
       req.io.to(`conversation:${conversationId}`).emit('newMessage', {
         conversationId,
-        message: populatedMessage
+        message: cleanedMessage
       });
       
       // También emitir a cada participante individualmente para actualizar la lista
@@ -196,7 +237,7 @@ exports.sendMessage = async (req, res) => {
         if (participantId.toString() !== userId) {
           req.io.to(participantId.toString()).emit('newMessage', {
             conversationId,
-            message: populatedMessage
+            message: cleanedMessage
           });
         }
       });
@@ -204,7 +245,7 @@ exports.sendMessage = async (req, res) => {
       console.log('📤 Mensaje emitido vía Socket.IO:', conversationId);
     }
 
-    res.status(201).json(populatedMessage);
+    res.status(201).json(cleanedMessage);
   } catch (error) {
     console.error('Error en sendMessage:', error);
     res.status(500).json({ message: 'Error al enviar mensaje', error: error.message });
