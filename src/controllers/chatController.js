@@ -27,12 +27,21 @@ exports.getConversations = async (req, res) => {
           'readBy.user': { $ne: userId }
         });
 
+        // Determinar estado de la conversación para este usuario
+        let status = 'active';
+        if (conv.blockedBy && conv.blockedBy.some(id => id.toString() === userId)) {
+          status = 'blocked';
+        } else if (conv.mutedBy && conv.mutedBy.some(id => id.toString() === userId)) {
+          status = 'muted';
+        }
+
         return {
           _id: conv._id,
           participants: conv.participants.filter(p => p._id.toString() !== userId),
           lastMessage: conv.lastMessage,
           lastMessageAt: conv.lastMessageAt,
-          unreadCount
+          unreadCount,
+          status
         };
       })
     );
