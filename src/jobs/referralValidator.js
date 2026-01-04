@@ -4,11 +4,13 @@ const referralController = require('../controllers/referralController');
 /**
  * CRON JOB: Validación Automática de Referidos Pendientes
  * 
- * Ejecuta diariamente a las 00:00 UTC para validar referidos pendientes
- * y acreditar puntos automáticamente cuando se cumplen los requisitos.
+ * Ejecuta cada hora para validar referidos pendientes y acreditar puntos 
+ * automáticamente cuando cumplen los requisitos de actividad (1 post + 2 comentarios).
  * 
- * Frecuencia: Todos los días a medianoche (00:00 UTC)
- * Patrón cron: '0 0 * * *'
+ * SIN REQUISITO DE TIEMPO - Validación más frecuente para mejor experiencia.
+ * 
+ * Frecuencia: Cada hora en punto (00:00, 01:00, 02:00, etc.)
+ * Patrón cron: '0 * * * *'
  */
 
 let cronJob = null;
@@ -20,11 +22,11 @@ const startReferralValidator = () => {
     return;
   }
 
-  // Configurar cron job para ejecutarse todos los días a medianoche
-  cronJob = cron.schedule('0 0 * * *', async () => {
+  // Configurar cron job para ejecutarse cada hora
+  cronJob = cron.schedule('0 * * * *', async () => {
     const timestamp = new Date().toISOString();
     console.log(`\n${'='.repeat(60)}`);
-    console.log(`🔄 [${timestamp}] Iniciando validación automática de referidos...`);
+    console.log(`🔄 [${timestamp}] Iniciando validación automática de referidos (cada hora)...`);
     console.log(`${'='.repeat(60)}\n`);
 
     try {
@@ -47,8 +49,8 @@ const startReferralValidator = () => {
   });
 
   console.log('✅ Cron job de validación de referidos iniciado');
-  console.log('📅 Programado para ejecutarse diariamente a las 00:00 UTC');
-  console.log('🔍 Validará referidos pendientes y acreditará puntos automáticamente\n');
+  console.log('⏰ Programado para ejecutarse CADA HORA (00:00, 01:00, 02:00, etc.)');
+  console.log('🔍 Validará referidos pendientes SIN requisito de tiempo - solo actividad (1 post + 2 comentarios)\n');
 };
 
 const stopReferralValidator = () => {
