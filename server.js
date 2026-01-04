@@ -259,6 +259,7 @@ const chatRoutes = require('./src/routes/chatRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const vipRoutes = require('./src/routes/vipRoutes');
 const referralRoutes = require('./src/routes/referralRoutes');
+const referralRoutesDev = require('./src/routes/referralRoutesDev');
 const gameRoutes = require('./src/routes/gameRoutes');
 
 app.use('/api/users', userRoutes);
@@ -271,6 +272,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/vip', vipRoutes);
+app.use('/api/referrals-dev', referralRoutesDev); // 🔥 Rutas de desarrollo
 app.use('/api/referrals', referralRoutes);
 app.use('/api/games', gameRoutes);
 
