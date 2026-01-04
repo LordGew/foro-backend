@@ -27,8 +27,8 @@ const UserSchema = new mongoose.Schema({
   },
   role: { 
     type: String, 
-    enum: ['Player', 'GameMaster', 'Admin'], 
-    default: 'Player' 
+    enum: ['user', 'moderator', 'admin'], 
+    default: 'user' 
   },
   xp: { 
     type: Number, 
@@ -122,10 +122,6 @@ const UserSchema = new mongoose.Schema({
   lastLogin: { 
     type: Date, 
     default: Date.now 
-  },
-  lastActivity: {
-    type: Date,
-    default: Date.now
   },
   vip: { 
     type: Boolean, 
@@ -334,6 +330,92 @@ UserSchema.methods.updateLastLogin = async function() {
   return this.save();
 };
 
+// 🛡️ Métodos de Moderación
+UserSchema.methods.isBannedOrSuspended = function() {
+  const now = new Date();
+  return (
+    this.isBanned || 
+    (this.bannedUntil && this.bannedUntil > now) ||
+    this.isSuspended ||
+    (this.suspendedUntil && this.suspendedUntil > now)
+  );
+};
+
+UserSchema.methods.hasRestriction = function(type) {
+  const restriction = this.restrictions?.find(r => r.type === type);
+  if (!restriction) return false;
+  return !restriction.until || restriction.until > new Date();
+};
+
+UserSchema.methods.addWarning = function(reason, moderatorId) {
+  this.warningCount += 1;
+  this.lastWarningAt = new Date();
+  this.moderationNotes = `Warning: ${reason}`;
+  return this.save();
+};
+
+UserSchema.methods.ban = function(duration, reason, moderatorId) {
+  this.isBanned = true;
+  this.bannedUntil = duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000) : null;
+  this.banReason = reason;
+  this.status = 'banned';
+  return this.save();
+};
+
+UserSchema.methods.suspend = function(duration, reason, moderatorId) {
+  this.isSuspended = true;
+  this.suspendedUntil = duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000) : null;
+  this.suspensionReason = reason;
+  this.status = 'suspended';
+  return this.save();
+};
+
+UserSchema.methods.liftBan = function() {
+  this.isBanned = false;
+  this.bannedUntil = null;
+  this.banReason = null;
+  this.status = 'active';
+  return this.save();
+};
+
+UserSchema.methods.liftSuspension = function() {
+  this.isSuspended = false;
+  this.suspendedUntil = null;
+  this.suspensionReason = null;
+  this.status = 'active';
+  return this.save();
+};
+
+UserSchema.methods.addRestriction = function(type, duration, reason) {
+  // Eliminar restricción existente del mismo tipo
+  this.restrictions = this.restrictions?.filter(r => r.type !== type) || [];
+  
+  // Agregar nueva restricción
+  this.restrictions.push({
+    type,
+    until: duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000) : null,
+    reason
+  });
+  
+  if (!this.isRestricted) {
+    this.isRestricted = true;
+    this.status = 'restricted';
+  }
+  
+  return this.save();
+};
+
+UserSchema.methods.removeRestriction = function(type) {
+  this.restrictions = this.restrictions?.filter(r => r.type !== type) || [];
+  
+  if (this.restrictions.length === 0) {
+    this.isRestricted = false;
+    this.status = 'active';
+  }
+  
+  return this.save();
+};
+
 // Índices para búsquedas rápidas
 UserSchema.index({ username: 'text', bio: 'text' });
 UserSchema.index({ xp: -1 });
@@ -341,5 +423,10 @@ UserSchema.index({ role: 1 });
 UserSchema.index({ 'mutedChats': 1 });
 UserSchema.index({ 'blockedUsers': 1 });
 UserSchema.index({ 'reportedChats.chatId': 1 });
+UserSchema.index({ status: 1 });
+UserSchema.index({ isBanned: 1 });
+UserSchema.index({ isSuspended: 1 });
+UserSchema.index({ bannedUntil: 1 });
+UserSchema.index({ suspendedUntil: 1 });
 
 module.exports = mongoose.model('User', UserSchema);

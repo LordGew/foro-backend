@@ -177,8 +177,6 @@ const login = async (req, res) => {
     }
     
     user.isOnline = true;
-    user.lastLogin = new Date();
-    user.lastActivity = new Date();
     await user.save();
 
     const token = jwt.sign({ 
@@ -193,7 +191,7 @@ const login = async (req, res) => {
         username: user.username, 
         role: user.role,
         xp: user.xp,
-        profileImage: user.profileImage || ''
+       profileImage: user.profileImage || ''
       } 
     });
   } catch (err) {
@@ -211,7 +209,6 @@ const logout = async (req, res) => {
       const user = await User.findById(userId);
       if (user) {
         user.isOnline = false;
-        user.lastActivity = new Date();
         await user.save();
       }
     }
@@ -415,7 +412,7 @@ const getUserById = async (req, res) => {
 };
 
 // Get Online Users
-// Esta función obtiene la lista de usuarios activos recientemente y algunas métricas agregadas.
+// Esta función obtiene la lista de usuarios online, incluyendo el usuario actual.
 const getOnlineUsers = async (req, res) => {
   try {
     console.log('Solicitud recibida para obtener usuarios online');
@@ -434,49 +431,25 @@ const getOnlineUsers = async (req, res) => {
       });
     }
 
-    const now = new Date();
-    const ACTIVE_MINUTES = 5;      // Usuarios considerados "en línea" si tuvieron actividad en los últimos 5 minutos
-    const RECENT_MINUTES = 15;     // Métrica adicional para últimos 15 minutos
-
-    const activeSince = new Date(now.getTime() - ACTIVE_MINUTES * 60 * 1000);
-    const recentSince = new Date(now.getTime() - RECENT_MINUTES * 60 * 1000);
-
-    const [activeUsers, recentCount] = await Promise.all([
-      User.find({
-        lastActivity: { $gte: activeSince },
-        banned: false
-      }).select('username _id profileImage role'),
-      User.countDocuments({
-        lastActivity: { $gte: recentSince },
-        banned: false
-      })
-    ]);
+    const users = await User.find({ isOnline: true }).select('username _id profileImage role');
+    
+    console.log(`Encontrados ${users.length} usuarios online`);
     
     const currentUserId = new mongoose.Types.ObjectId(req.user.userId);
-    const currentUserIndex = activeUsers.findIndex(u => u._id.toString() === currentUserId.toString());
+    const currentUserIndex = users.findIndex(u => u._id.toString() === currentUserId.toString());
     
     if (currentUserIndex === -1) {
       try {
         const currentUser = await User.findById(currentUserId).select('username _id profileImage role');
         if (currentUser) {
-          activeUsers.unshift(currentUser);
+          users.unshift(currentUser);
         }
       } catch (userError) {
         console.error('Error al buscar usuario actual:', userError);
       }
     }
-
-    const response = {
-      online: activeUsers,
-      metrics: {
-        activeNow: activeUsers.length,
-        activeLast15m: recentCount
-      }
-    };
-
-    console.log(`Usuarios activos ahora: ${response.metrics.activeNow}, activos últimos 15m: ${response.metrics.activeLast15m}`);
     
-    res.json(response);
+    res.json(users);
   } catch (err) {
     console.error('Error fetching online users:', err);
     res.status(500).json({ 
@@ -926,55 +899,8 @@ const acceptRequest = async (req, res) => {
     res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 };
-
-// Clean Profile Images
-// Esta función limpia las URLs de profileImage que tienen prefijos incorrectos de localhost
-const cleanProfileImages = async () => {
-  try {
-    const users = await User.find({ profileImage: { $exists: true, $ne: null } });
-    
-    let cleanedCount = 0;
-    for (const user of users) {
-      if (user.profileImage && user.profileImage.includes('localhost:5000')) {
-        // Extraer solo la URL de Cloudinary
-        const cloudinaryUrl = user.profileImage.match(/(https:\/\/res\.cloudinary\.com\/.*)/);
-        if (cloudinaryUrl) {
-          user.profileImage = cloudinaryUrl[1];
-          await user.save();
-          cleanedCount++;
-          console.log(`Limpiado: ${user.username} -> ${user.profileImage}`);
-        }
-      }
-    }
-    
-    console.log(`✅ URLs limpiadas: ${cleanedCount} de ${users.length}`);
-    return { cleanedCount, totalUsers: users.length };
-  } catch (error) {
-    console.error('Error limpiando profileImages:', error);
-    throw error;
-  }
-};
-
-// Clean Profile Images Endpoint (Admin only)
-const cleanProfileImagesEndpoint = async (req, res) => {
-  try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ message: 'Solo administradores pueden ejecutar esta acción' });
-    }
-
-    const result = await cleanProfileImages();
-    res.json({ 
-      message: 'Limpieza completada',
-      ...result
-    });
-  } catch (error) {
-    console.error('Error en cleanProfileImagesEndpoint:', error);
-    res.status(500).json({ message: 'Error al limpiar imágenes', error: error.message });
-  }
-};
-
 // Función para limpiar profileImage al iniciar el servidor
-const cleanProfileImagesOnStart = async () => {
+const cleanProfileImages = async () => {
   try {
     const users = await User.find({ profileImage: { $exists: true, $ne: '' } });
     let cleanedCount = 0;
@@ -1027,6 +953,5 @@ module.exports = {
   unblockUser,
   acceptRequest,
   cleanProfileImages,
-  cleanProfileImagesEndpoint,
   refreshToken
 };

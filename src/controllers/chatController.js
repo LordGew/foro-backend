@@ -1,370 +1,692 @@
-const Conversation = require('../models/Conversation');
-const Message = require('../models/Message');
+const ChatRoom = require('../models/ChatRoom');
+const ChatMessage = require('../models/ChatMessage');
+const Report = require('../models/Report');
+const ModerationAction = require('../models/ModerationAction');
 const User = require('../models/User');
-const mongoose = require('mongoose');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
-// Helper para limpiar URLs de Cloudinary
-const cleanImageUrl = (url) => {
-  if (!url) return url;
-  // Si la URL contiene el prefijo localhost malformado, extraer solo la URL de Cloudinary
-  if (url.includes('localhost:5000/uploads/profiles/https://')) {
-    return url.replace(/.*localhost:5000\/uploads\/profiles\//, '');
+// Configuración de multer para archivos
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../uploads/chat');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
-  // Si ya es una URL de Cloudinary limpia, devolverla
-  if (url.startsWith('https://res.cloudinary.com/')) return url;
-  // Intentar extraer URL de Cloudinary con regex
-  const match = url.match(/(https:\/\/res\.cloudinary\.com\/.*)/);
-  if (match) return match[1];
-  return url;
-};
+});
 
-// Obtener todas las conversaciones del usuario
-exports.getConversations = async (req, res) => {
-  try {
-    const userId = req.user.userId;
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Tipo de archivo no permitido'));
+    }
+  }
+});
 
-    const conversations = await Conversation.find({
-      participants: userId
-    })
-      .populate('participants', 'username avatar profileImage')
-      .populate({
-        path: 'lastMessage',
-        populate: { path: 'sender', select: 'username avatar' }
-      })
-      .sort({ lastMessageAt: -1 });
-
-    // Calcular mensajes no leídos por conversación
-    const conversationsWithUnread = await Promise.all(
-      conversations.map(async (conv) => {
-        const unreadCount = await Message.countDocuments({
-          conversation: conv._id,
-          sender: { $ne: userId },
-          'readBy.user': { $ne: userId }
+class ChatController {
+  // Obtener chats del usuario
+  async getUserChats(req, res) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      
+      const chats = await ChatRoom.getUserChats(req.user._id, page, limit);
+      
+      // Para cada chat, obtener no leídos
+      const chatsWithUnread = await Promise.all(chats.map(async (chat) => {
+        const unreadCount = await ChatMessage.countDocuments({
+          chatRoom: chat._id,
+          sender: { $ne: req.user._id },
+          readAt: null,
+          isDeleted: false
         });
-
-        // Determinar estado de la conversación para este usuario
-        let status = 'active';
-        if (conv.blockedBy && conv.blockedBy.some(id => id.toString() === userId)) {
-          status = 'blocked';
-        } else if (conv.mutedBy && conv.mutedBy.some(id => id.toString() === userId)) {
-          status = 'muted';
-        }
-
-        // Limpiar URLs de imágenes en participantes
-        const cleanedParticipants = conv.participants
-          .filter(p => p._id.toString() !== userId)
-          .map(p => ({
-            ...p.toObject(),
-            profileImage: cleanImageUrl(p.profileImage),
-            avatar: cleanImageUrl(p.avatar)
-          }));
-
+        
         return {
-          _id: conv._id,
-          participants: cleanedParticipants,
-          lastMessage: conv.lastMessage,
-          lastMessageAt: conv.lastMessageAt,
-          unreadCount,
-          status
+          ...chat.toObject(),
+          unreadCount
         };
-      })
-    );
-
-    res.json(conversationsWithUnread);
-  } catch (error) {
-    console.error('Error en getConversations:', error);
-    res.status(500).json({ message: 'Error al obtener conversaciones', error: error.message });
-  }
-};
-
-// Obtener o crear conversación con un usuario
-exports.getOrCreateConversation = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const { otherUserId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(otherUserId)) {
-      return res.status(400).json({ message: 'ID de usuario inválido' });
-    }
-
-    // Verificar que el otro usuario existe
-    const otherUser = await User.findById(otherUserId);
-    if (!otherUser) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
-    }
-
-    // Buscar conversación existente
-    let conversation = await Conversation.findOne({
-      participants: { $all: [userId, otherUserId], $size: 2 }
-    })
-      .populate('participants', 'username avatar profileImage')
-      .populate({
-        path: 'lastMessage',
-        populate: { path: 'sender', select: 'username avatar' }
-      });
-
-    // Si no existe, crear nueva
-    if (!conversation) {
-      conversation = await Conversation.create({
-        participants: [userId, otherUserId]
-      });
+      }));
       
-      conversation = await Conversation.findById(conversation._id)
-        .populate('participants', 'username avatar profileImage');
+      res.json({
+        success: true,
+        data: chatsWithUnread,
+        pagination: {
+          page,
+          limit,
+          total: chatsWithUnread.length
+        }
+      });
+    } catch (error) {
+      console.error('Error getting user chats:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al obtener los chats'
+      });
     }
-
-    res.json(conversation);
-  } catch (error) {
-    console.error('Error en getOrCreateConversation:', error);
-    res.status(500).json({ message: 'Error al obtener conversación', error: error.message });
   }
-};
 
-// Obtener mensajes de una conversación
-exports.getMessages = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const { conversationId } = req.params;
-    const { limit = 50, before } = req.query;
-
-    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      return res.status(400).json({ message: 'ID de conversación inválido' });
-    }
-
-    // Verificar que el usuario es parte de la conversación
-    const conversation = await Conversation.findOne({
-      _id: conversationId,
-      participants: userId
-    });
-
-    if (!conversation) {
-      return res.status(404).json({ message: 'Conversación no encontrada' });
-    }
-
-    // Construir query
-    const query = {
-      conversation: conversationId,
-      deleted: false
-    };
-
-    if (before) {
-      query.createdAt = { $lt: new Date(before) };
-    }
-
-    // Obtener mensajes
-    const messages = await Message.find(query)
-      .populate('sender', 'username avatar profileImage')
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit));
-
-    // Limpiar URLs de imágenes
-    const cleanedMessages = messages.map(msg => {
-      const msgObj = msg.toObject();
-      if (msgObj.sender) {
-        msgObj.sender.profileImage = cleanImageUrl(msgObj.sender.profileImage);
-        msgObj.sender.avatar = cleanImageUrl(msgObj.sender.avatar);
+  // Crear o obtener chat privado
+  async getOrCreatePrivateChat(req, res) {
+    try {
+      const { userId } = req.params;
+      
+      if (userId === req.user._id.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: 'No puedes crear un chat contigo mismo'
+        });
       }
-      return msgObj;
-    });
-
-    res.json(cleanedMessages.reverse());
-  } catch (error) {
-    console.error('Error en getMessages:', error);
-    res.status(500).json({ message: 'Error al obtener mensajes', error: error.message });
+      
+      // Verificar que el otro usuario existe
+      const otherUser = await User.findById(userId);
+      if (!otherUser) {
+        return res.status(404).json({
+          success: false,
+          message: 'Usuario no encontrado'
+        });
+      }
+      
+      // Buscar chat privado existente
+      let chatRoom = await ChatRoom.findPrivateChat(req.user._id, userId);
+      
+      if (!chatRoom) {
+        // Crear nuevo chat privado
+        chatRoom = new ChatRoom({
+          type: 'private',
+          participants: [
+            { user: req.user._id },
+            { user: userId }
+          ],
+          createdBy: req.user._id
+        });
+        
+        await chatRoom.save();
+        await chatRoom.populate('participants.user', 'username name avatar role');
+      }
+      
+      res.json({
+        success: true,
+        data: chatRoom
+      });
+    } catch (error) {
+      console.error('Error getting/creating private chat:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al crear/obtener el chat'
+      });
+    }
   }
-};
 
-// Enviar mensaje
-exports.sendMessage = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const { conversationId } = req.params;
-    const { content, type = 'text' } = req.body;
-
-    if (!content || !content.trim()) {
-      return res.status(400).json({ message: 'El contenido del mensaje es requerido' });
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      return res.status(400).json({ message: 'ID de conversación inválido' });
-    }
-
-    // Verificar que el usuario es parte de la conversación
-    const conversation = await Conversation.findOne({
-      _id: conversationId,
-      participants: userId
-    });
-
-    if (!conversation) {
-      return res.status(404).json({ message: 'Conversación no encontrada' });
-    }
-
-    // Crear mensaje
-    const message = await Message.create({
-      conversation: conversationId,
-      sender: userId,
-      content: content.trim(),
-      type
-    });
-
-    // Actualizar conversación
-    await Conversation.findByIdAndUpdate(conversationId, {
-      lastMessage: message._id,
-      lastMessageAt: new Date()
-    });
-
-    // Poblar datos del mensaje
-    const populatedMessage = await Message.findById(message._id)
-      .populate('sender', 'username avatar profileImage');
-
-    // Limpiar URLs de imágenes antes de emitir
-    const cleanedMessage = populatedMessage.toObject();
-    if (cleanedMessage.sender) {
-      cleanedMessage.sender.profileImage = cleanImageUrl(cleanedMessage.sender.profileImage);
-      cleanedMessage.sender.avatar = cleanImageUrl(cleanedMessage.sender.avatar);
-    }
-
-    // Emitir evento Socket.IO a la sala de la conversación
-    if (req.io) {
-      // Emitir a la sala de la conversación
-      req.io.to(`conversation:${conversationId}`).emit('newMessage', {
-        conversationId,
-        message: cleanedMessage
+  // Obtener mensajes de un chat
+  async getChatMessages(req, res) {
+    try {
+      const { chatId } = req.params;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 50;
+      
+      // Verificar que el usuario es participante del chat
+      const chatRoom = await ChatRoom.findOne({
+        _id: chatId,
+        'participants.user': req.user._id,
+        isActive: true
       });
       
-      // También emitir a cada participante individualmente para actualizar la lista
-      conversation.participants.forEach(participantId => {
-        if (participantId.toString() !== userId) {
-          req.io.to(participantId.toString()).emit('newMessage', {
-            conversationId,
-            message: cleanedMessage
+      if (!chatRoom) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes acceso a este chat'
+        });
+      }
+      
+      const messages = await ChatMessage.find({
+        chatRoom: chatId,
+        isDeleted: false
+      })
+      .populate('sender', 'username name avatar role')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+      
+      // Marcar mensajes como leídos
+      await chatRoom.markAsRead(req.user._id);
+      
+      res.json({
+        success: true,
+        data: messages.reverse(),
+        pagination: {
+          page,
+          limit
+        }
+      });
+    } catch (error) {
+      console.error('Error getting chat messages:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al obtener los mensajes'
+      });
+    }
+  }
+
+  // Enviar mensaje
+  async sendMessage(req, res) {
+    try {
+      const { chatId } = req.params;
+      const { content, messageType = 'text' } = req.body;
+      
+      // Validar contenido
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'El mensaje no puede estar vacío'
+        });
+      }
+      
+      if (content.length > 1000) {
+        return res.status(400).json({
+          success: false,
+          message: 'El mensaje no puede exceder 1000 caracteres'
+        });
+      }
+      
+      // Verificar acceso al chat
+      const chatRoom = await ChatRoom.findOne({
+        _id: chatId,
+        'participants.user': req.user._id,
+        isActive: true
+      }).populate('participants.user');
+      
+      if (!chatRoom) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes acceso a este chat'
+        });
+      }
+      
+      // Verificar si el usuario está muteado
+      const participant = chatRoom.participants.find(p => p.user._id.toString() === req.user._id.toString());
+      if (participant.isMuted && participant.mutedUntil && participant.mutedUntil > new Date()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Estás muteado en este chat'
+        });
+      }
+      
+      // Verificar si el usuario tiene suspensiones activas
+      const activeActions = await ModerationAction.getActiveActions(req.user._id);
+      const hasBan = activeActions.some(action => action.actionType === 'ban');
+      const hasSuspension = activeActions.some(action => action.actionType === 'suspend');
+      
+      if (hasBan) {
+        return res.status(403).json({
+          success: false,
+          message: 'Tu cuenta está baneada'
+        });
+      }
+      
+      if (hasSuspension) {
+        return res.status(403).json({
+          success: false,
+          message: 'Tu cuenta está suspendida'
+        });
+      }
+      
+      // Crear mensaje
+      const message = new ChatMessage({
+        chatRoom: chatId,
+        sender: req.user._id,
+        receiver: chatRoom.participants.find(p => p.user._id.toString() !== req.user._id.toString()).user._id,
+        content: content.trim(),
+        messageType
+      });
+      
+      await message.save();
+      await message.populate('sender', 'username name avatar role');
+      
+      // Emitir mensaje vía Socket.IO
+      if (global.io) {
+        // Enviar a todos los participantes del chat
+        chatRoom.participants.forEach(participant => {
+          global.io.emit(`user:${participant.user._id}:new_message`, {
+            message,
+            chatRoom: {
+              _id: chatRoom._id,
+              type: chatRoom.type,
+              participants: chatRoom.participants.map(p => ({
+                user: {
+                  _id: p.user._id,
+                  username: p.user.username,
+                  name: p.user.name,
+                  avatar: p.user.avatar
+                }
+              }))
+            }
+          });
+        });
+      }
+      
+      res.status(201).json({
+        success: true,
+        data: message
+      });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al enviar el mensaje'
+      });
+    }
+  }
+
+  // Subir archivo en chat
+  uploadChatFile(req, res) {
+    upload.single('file')(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: 'Error al subir el archivo: ' + err.message
+        });
+      }
+      
+      try {
+        const { chatId } = req.params;
+        const file = req.file;
+        
+        if (!file) {
+          return res.status(400).json({
+            success: false,
+            message: 'No se proporcionó ningún archivo'
           });
         }
+        
+        // Verificar acceso al chat
+        const chatRoom = await ChatRoom.findOne({
+          _id: chatId,
+          'participants.user': req.user._id,
+          isActive: true
+        });
+        
+        if (!chatRoom) {
+          // Eliminar archivo si no tiene acceso
+          fs.unlinkSync(file.path);
+          return res.status(403).json({
+            success: false,
+            message: 'No tienes acceso a este chat'
+          });
+        }
+        
+        // Crear mensaje de archivo
+        const message = new ChatMessage({
+          chatRoom: chatId,
+          sender: req.user._id,
+          receiver: chatRoom.participants.find(p => p.user._id.toString() !== req.user._id.toString()).user._id,
+          content: `📎 ${file.originalname}`,
+          messageType: file.mimetype.startsWith('image/') ? 'image' : 'file',
+          fileUrl: `/uploads/chat/${file.filename}`
+        });
+        
+        await message.save();
+        await message.populate('sender', 'username name avatar role');
+        
+        // Emitir mensaje vía Socket.IO
+        if (global.io) {
+          chatRoom.participants.forEach(participant => {
+            global.io.emit(`user:${participant.user._id}:new_message`, {
+              message,
+              chatRoom: {
+                _id: chatRoom._id,
+                type: chatRoom.type
+              }
+            });
+          });
+        }
+        
+        res.status(201).json({
+          success: true,
+          data: message
+        });
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        // Eliminar archivo si hay error
+        if (req.file) {
+          fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({
+          success: false,
+          message: 'Error al subir el archivo'
+        });
+      }
+    });
+  }
+
+  // Editar mensaje
+  async editMessage(req, res) {
+    try {
+      const { messageId } = req.params;
+      const { content } = req.body;
+      
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'El mensaje no puede estar vacío'
+        });
+      }
+      
+      const message = await ChatMessage.findById(messageId);
+      
+      if (!message) {
+        return res.status(404).json({
+          success: false,
+          message: 'Mensaje no encontrado'
+        });
+      }
+      
+      if (message.sender.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puedes editar tus propios mensajes'
+        });
+      }
+      
+      if (message.isDeleted) {
+        return res.status(400).json({
+          success: false,
+          message: 'No puedes editar un mensaje eliminado'
+        });
+      }
+      
+      // Solo se puede editar dentro de los 15 minutos
+      const editTimeLimit = 15 * 60 * 1000; // 15 minutos
+      if (Date.now() - message.createdAt.getTime() > editTimeLimit) {
+        return res.status(400).json({
+          success: false,
+          message: 'Solo puedes editar mensajes dentro de los 15 minutos posteriores'
+        });
+      }
+      
+      message.content = content.trim();
+      message.isEdited = true;
+      message.editedAt = new Date();
+      
+      await message.save();
+      
+      // Emitir actualización vía Socket.IO
+      if (global.io) {
+        global.io.emit(`chat:${message.chatRoom}:message_updated`, {
+          messageId: message._id,
+          content: message.content,
+          isEdited: message.isEdited,
+          editedAt: message.editedAt
+        });
+      }
+      
+      res.json({
+        success: true,
+        data: message
+      });
+    } catch (error) {
+      console.error('Error editing message:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al editar el mensaje'
+      });
+    }
+  }
+
+  // Eliminar mensaje
+  async deleteMessage(req, res) {
+    try {
+      const { messageId } = req.params;
+      
+      const message = await ChatMessage.findById(messageId);
+      
+      if (!message) {
+        return res.status(404).json({
+          success: false,
+          message: 'Mensaje no encontrado'
+        });
+      }
+      
+      // Verificar permisos (propietario del mensaje o admin)
+      const canDelete = message.sender.toString() === req.user._id.toString() || 
+                       ['admin', 'moderator'].includes(req.user.role);
+      
+      if (!canDelete) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para eliminar este mensaje'
+        });
+      }
+      
+      message.isDeleted = true;
+      message.deletedAt = new Date();
+      
+      if (req.user.role !== 'user') {
+        message.moderatedBy = req.user._id;
+        message.moderatedAt = new Date();
+        message.moderationReason = 'Eliminado por moderador';
+      }
+      
+      await message.save();
+      
+      // Emitir eliminación vía Socket.IO
+      if (global.io) {
+        global.io.emit(`chat:${message.chatRoom}:message_deleted`, {
+          messageId: message._id
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Mensaje eliminado correctamente'
+      });
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al eliminar el mensaje'
+      });
+    }
+  }
+
+  // Reportar mensaje
+  async reportMessage(req, res) {
+    try {
+      const { messageId } = req.params;
+      const { category, description } = req.body;
+      
+      if (!category || !description) {
+        return res.status(400).json({
+          success: false,
+          message: 'La categoría y descripción son requeridas'
+        });
+      }
+      
+      const message = await ChatMessage.findById(messageId).populate('sender');
+      
+      if (!message) {
+        return res.status(404).json({
+          success: false,
+          message: 'Mensaje no encontrado'
+        });
+      }
+      
+      // Verificar que no haya reportado ya este mensaje
+      const existingReport = await Report.findOne({
+        reporter: req.user._id,
+        targetType: 'message',
+        targetId: messageId,
+        status: { $in: ['pending', 'under_review'] }
       });
       
-      console.log('📤 Mensaje emitido vía Socket.IO:', conversationId);
+      if (existingReport) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ya has reportado este mensaje'
+        });
+      }
+      
+      // Crear reporte
+      const report = new Report({
+        reporter: req.user._id,
+        targetType: 'message',
+        targetId: messageId,
+        category,
+        description,
+        priority: category === 'threats' || category === 'violence' ? 'high' : 'medium'
+      });
+      
+      await report.save();
+      
+      // Incrementar contador de reportes del mensaje
+      message.reportedCount += 1;
+      
+      // Si hay muchos reportes, ocultar el mensaje temporalmente
+      if (message.reportedCount >= 3) {
+        message.isHidden = true;
+      }
+      
+      await message.save();
+      
+      res.status(201).json({
+        success: true,
+        message: 'Mensaje reportado correctamente',
+        data: report
+      });
+    } catch (error) {
+      console.error('Error reporting message:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al reportar el mensaje'
+      });
     }
-
-    res.status(201).json(cleanedMessage);
-  } catch (error) {
-    console.error('Error en sendMessage:', error);
-    res.status(500).json({ message: 'Error al enviar mensaje', error: error.message });
   }
-};
 
-// Marcar mensajes como leídos
-exports.markAsRead = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const { conversationId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      return res.status(400).json({ message: 'ID de conversación inválido' });
+  // Marcar mensajes como leídos
+  async markAsRead(req, res) {
+    try {
+      const { chatId } = req.params;
+      
+      const chatRoom = await ChatRoom.findOne({
+        _id: chatId,
+        'participants.user': req.user._id,
+        isActive: true
+      });
+      
+      if (!chatRoom) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes acceso a este chat'
+        });
+      }
+      
+      await chatRoom.markAsRead(req.user._id);
+      
+      // Marcar mensajes individuales como leídos
+      await ChatMessage.updateMany(
+        {
+          chatRoom: chatId,
+          receiver: req.user._id,
+          readAt: null
+        },
+        {
+          readAt: new Date()
+        }
+      );
+      
+      // Emitir estado de lectura vía Socket.IO
+      if (global.io) {
+        global.io.emit(`chat:${chatId}:read`, {
+          userId: req.user._id,
+          readAt: new Date()
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Mensajes marcados como leídos'
+      });
+    } catch (error) {
+      console.error('Error marking as read:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al marcar mensajes como leídos'
+      });
     }
+  }
 
-    // Verificar que el usuario es parte de la conversación
-    const conversation = await Conversation.findOne({
-      _id: conversationId,
-      participants: userId
-    });
-
-    if (!conversation) {
-      return res.status(404).json({ message: 'Conversación no encontrada' });
-    }
-
-    // Marcar mensajes no leídos como leídos
-    await Message.updateMany(
-      {
-        conversation: conversationId,
-        sender: { $ne: userId },
-        'readBy.user': { $ne: userId }
-      },
-      {
-        $push: {
-          readBy: {
-            user: userId,
-            readAt: new Date()
+  // Obtener estadísticas del chat
+  async getChatStats(req, res) {
+    try {
+      const userId = req.user._id;
+      
+      const stats = await ChatRoom.aggregate([
+        { $match: { 'participants.user': userId, isActive: true } },
+        {
+          $lookup: {
+            from: 'chatmessages',
+            localField: '_id',
+            foreignField: 'chatRoom',
+            as: 'messages'
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalChats: { $sum: 1 },
+            totalMessages: { $sum: { $size: '$messages' } },
+            unreadMessages: {
+              $sum: {
+                $size: {
+                  $filter: {
+                    input: '$messages',
+                    cond: {
+                      $and: [
+                        { $ne: ['$$this.sender', userId] },
+                        { $eq: ['$$this.readAt', null] },
+                        { $eq: ['$$this.isDeleted', false] }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
           }
         }
-      }
-    );
-
-    // Emitir evento Socket.IO
-    if (req.io) {
-      const otherParticipant = conversation.participants.find(
-        p => p.toString() !== userId
-      );
+      ]);
       
-      req.io.to(otherParticipant.toString()).emit('messagesRead', {
-        conversationId,
-        readBy: userId
+      res.json({
+        success: true,
+        data: stats[0] || {
+          totalChats: 0,
+          totalMessages: 0,
+          unreadMessages: 0
+        }
+      });
+    } catch (error) {
+      console.error('Error getting chat stats:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al obtener estadísticas'
       });
     }
-
-    res.json({ message: 'Mensajes marcados como leídos' });
-  } catch (error) {
-    console.error('Error en markAsRead:', error);
-    res.status(500).json({ message: 'Error al marcar mensajes', error: error.message });
   }
-};
+}
 
-// Eliminar mensaje
-exports.deleteMessage = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const { messageId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(messageId)) {
-      return res.status(400).json({ message: 'ID de mensaje inválido' });
-    }
-
-    const message = await Message.findOne({
-      _id: messageId,
-      sender: userId
-    });
-
-    if (!message) {
-      return res.status(404).json({ message: 'Mensaje no encontrado' });
-    }
-
-    message.deleted = true;
-    message.content = 'Este mensaje fue eliminado';
-    await message.save();
-
-    // Emitir evento Socket.IO
-    if (req.io) {
-      const conversation = await Conversation.findById(message.conversation);
-      const otherParticipant = conversation.participants.find(
-        p => p.toString() !== userId
-      );
-      
-      req.io.to(otherParticipant.toString()).emit('messageDeleted', {
-        conversationId: message.conversation,
-        messageId
-      });
-    }
-
-    res.json({ message: 'Mensaje eliminado' });
-  } catch (error) {
-    console.error('Error en deleteMessage:', error);
-    res.status(500).json({ message: 'Error al eliminar mensaje', error: error.message });
-  }
-};
-
-// Obtener usuarios online
-exports.getOnlineUsers = async (req, res) => {
-  try {
-    const io = req.io;
-    if (!io) {
-      return res.status(500).json({ message: 'Socket.IO no disponible' });
-    }
-
-    const sockets = await io.fetchSockets();
-    const onlineUserIds = [...new Set(sockets.map(s => s.userId).filter(Boolean))];
-
-    res.json({ onlineUsers: onlineUserIds });
-  } catch (error) {
-    console.error('Error en getOnlineUsers:', error);
-    res.status(500).json({ message: 'Error al obtener usuarios online', error: error.message });
-  }
-};
+module.exports = new ChatController();

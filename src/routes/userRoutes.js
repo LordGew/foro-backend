@@ -24,7 +24,6 @@ const {
   createPaymentIntent,
   handleStripeWebhook,
   unblockUser,
-  cleanProfileImagesEndpoint,
   refreshToken
 } = require('../controllers/userController');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -70,36 +69,6 @@ router.put('/user/:id/ban', authMiddleware, rbacMiddleware('Admin'), banUser);  
 router.put('/user/:id/unban', authMiddleware, rbacMiddleware('Admin'), unbanUser);  // REMOVIDO: csrfProtection
 router.put('/user/:id/mute', authMiddleware, rbacMiddleware('Admin'), muteUser);  // REMOVIDO: csrfProtection
 router.put('/user/:id/unmute', authMiddleware, rbacMiddleware('Admin'), unmuteUser);  // REMOVIDO: csrfProtection
-router.put('/user/:id/block', authMiddleware, (req, res, next) => {
-  // Función inline para bloquear usuario
-  const User = require('../models/User');
-  const userId = req.params.id;
-  const currentUserId = req.user.userId;
-  
-  User.findById(currentUserId)
-    .then(user => {
-      if (!user) {
-        return res.status(404).json({ message: 'Usuario no encontrado' });
-      }
-      
-      if (!user.blockedUsers) {
-        user.blockedUsers = [];
-      }
-      
-      if (!user.blockedUsers.includes(userId)) {
-        user.blockedUsers.push(userId);
-      }
-      
-      return user.save();
-    })
-    .then(() => {
-      res.json({ message: 'Usuario bloqueado exitosamente' });
-    })
-    .catch(err => {
-      console.error('Error al bloquear usuario:', err);
-      res.status(500).json({ message: 'Error al bloquear usuario' });
-    });
-});
 router.put('/user/:id/unblock', authMiddleware, unblockUser);  // REMOVIDO: csrfProtection
 
 // Ruta de usuario por ID (al final, lectura)
@@ -166,8 +135,5 @@ router.patch('/update-profile-image', authMiddleware, uploadProfileImageToCloudi
   }
 });
 // --- FIN NUEVO ---
-
-// Ruta para limpiar URLs de imágenes malformadas (solo Admin)
-router.post('/clean-profile-images', authMiddleware, rbacMiddleware('Admin'), cleanProfileImagesEndpoint);
 
 module.exports = router;

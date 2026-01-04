@@ -45,27 +45,27 @@ exports.getMyReferralCode = async (req, res) => {
 };
 
 /**
- * REGLAS DE VALIDACIÓN DE REFERIDOS - PRODUCCIÓN:
+ * REGLAS DE VALIDACIÓN DE REFERIDOS:
  * 
  * 1. VALIDACIONES ANTI-FRAUDE:
  *    - No se permite usar el propio código de referido
  *    - No se permite usar un código más de una vez
- *    - Detección de misma IP (REQUISITO FUNDAMENTAL)
+ *    - Detección de misma IP (si está disponible en req.ip)
  *    - El usuario debe completar su perfil
  * 
  * 2. REQUISITOS PARA ACREDITACIÓN DE PUNTOS:
- *    - El referido debe crear al menos 1 post Y al menos 2 comentarios
- *    - SIN REQUISITO DE TIEMPO (eliminada espera de 2 días)
+ *    - El referido debe crear al menos 1 post O 3 comentarios
+ *    - El referido debe permanecer activo por al menos 2 días (cambiado de 7 días)
  *    - Estado inicial: 'pending' (pendiente de validación)
  *    - Estado final: 'completed' (puntos acreditados)
  * 
  * 3. PUNTOS OTORGADOS:
  *    - NUEVO USUARIO: 50 puntos inmediatos al registrarse con código de referido
- *    - REFERIDOR: 100 puntos cuando el referido cumple los requisitos (actividad + IP diferente)
+ *    - REFERIDOR: 100 puntos cuando el referido cumple los requisitos (2 días + actividad)
  * 
  * 4. TIEMPO DE VALIDACIÓN:
- *    - Los puntos del referidor se acreditan automáticamente cuando se cumplen los requisitos de actividad
- *    - Un job programado verifica cada hora los referidos pendientes (más frecuente sin restricción de tiempo)
+ *    - Los puntos del referidor se acreditan automáticamente cuando se cumplen todos los requisitos
+ *    - Un job programado verifica diariamente los referidos pendientes
  */
 
 // Aplicar código de referido al registrarse
@@ -144,13 +144,13 @@ exports.applyReferralCode = async (req, res) => {
     }
     
     res.json({
-      message: '¡Bienvenido! Has recibido 50 puntos de regalo. Tu referidor recibirá 100 puntos cuando crees 1 post y 2 comentarios (sin tiempo de espera).',
+      message: '¡Bienvenido! Has recibido 50 puntos de regalo. Tu referidor recibirá 100 puntos cuando completes los requisitos de actividad.',
       status: 'pending',
       pointsReceived: 50,
       requirements: {
         profileComplete: false,
-        minimumActivity: 'Crear 1 post Y al menos 2 comentarios',
-        minimumDays: 0, // SIN REQUISITO DE TIEMPO
+        minimumActivity: 'Crear 1 post o 3 comentarios',
+        minimumDays: 2,
         referrerPointsToEarn: 100
       },
       referrer: {
@@ -441,9 +441,9 @@ exports.deleteReward = async (req, res) => {
 /**
  * JOB AUTOMÁTICO: Validar referidos pendientes
  * 
- * Esta función se ejecuta cada hora para verificar si los referidos pendientes 
- * han cumplido los requisitos de actividad (1 post Y 2 comentarios) y acreditar 
- * los puntos correspondientes SIN REQUISITO DE TIEMPO.
+ * Esta función debe ejecutarse diariamente (mediante cron job o similar)
+ * para verificar si los referidos pendientes han cumplido los requisitos
+ * y acreditar los puntos correspondientes.
  */
 exports.validatePendingReferrals = async (req, res) => {
   try {
@@ -460,23 +460,28 @@ exports.validatePendingReferrals = async (req, res) => {
       
       if (!referred || !referrer) continue;
       
-      // 🔥 NUEVA LÓGICA: SIN REQUISITO DE TIEMPO
+      // Verificar tiempo mínimo (2 días desde el registro)
+      const daysSinceRegistration = Math.floor((Date.now() - new Date(referred.createdAt)) / (1000 * 60 * 60 * 24));
+      
+      if (daysSinceRegistration < 2) {
+        continue; // Aún no cumple el tiempo mínimo
+      }
+      
       // Verificar perfil completo (al menos tiene username y email)
       const profileComplete = referred.username && referred.email;
       
-      // Verificar actividad requerida: 1 post Y al menos 2 comentarios
+      // Verificar actividad mínima
       const Post = require('../models/Post');
       const Reply = require('../models/Reply');
       
       const postCount = await Post.countDocuments({ author: referred._id });
       const replyCount = await Reply.countDocuments({ author: referred._id });
       
-      // 🔥 CAMBIO: Requiere 1 post Y 2 comentarios (no O)
-      const hasRequiredActivity = postCount >= 1 && replyCount >= 2;
+      const hasMinimumActivity = postCount >= 1 || replyCount >= 3;
       
-      // Validar si cumple todos los requisitos (sin verificación de tiempo)
-      if (profileComplete && hasRequiredActivity) {
-        // ACREDITAR PUNTOS INMEDIATAMENTE
+      // Validar si cumple todos los requisitos
+      if (profileComplete && hasMinimumActivity && daysSinceRegistration >= 2) {
+        // ACREDITAR PUNTOS
         referral.status = 'completed';
         referral.completedAt = new Date();
         await referral.save();
@@ -494,15 +499,15 @@ exports.validatePendingReferrals = async (req, res) => {
           });
         }
         
-        console.log(`✅ Referido validado: ${referred.username} -> ${referrer.username} (+${referral.pointsAwarded} puntos) [${postCount} posts, ${replyCount} comentarios]`);
-      } else if (Math.floor((Date.now() - new Date(referred.createdAt)) / (1000 * 60 * 60 * 24)) >= 30) {
+        console.log(`✅ Referido validado: ${referred.username} -> ${referrer.username} (+${referral.pointsAwarded} puntos)`);
+      } else if (daysSinceRegistration >= 30) {
         // Si han pasado 30 días y no cumple requisitos, cancelar
         referral.status = 'cancelled';
         await referral.save();
         
         cancelledCount++;
         
-        console.log(`❌ Referido cancelado por inactividad: ${referred.username} -> ${referrer.username} [${postCount} posts, ${replyCount} comentarios]`);
+        console.log(`❌ Referido cancelado por inactividad: ${referred.username} -> ${referrer.username}`);
       }
     }
     
@@ -558,8 +563,7 @@ exports.checkReferralStatus = async (req, res) => {
     const postCount = await Post.countDocuments({ author: userId });
     const replyCount = await Reply.countDocuments({ author: userId });
     
-    // 🔥 NUEVA LÓGICA: Requiere 1 post Y al menos 2 comentarios
-    const hasRequiredActivity = postCount >= 1 && replyCount >= 2;
+    const hasMinimumActivity = postCount >= 1 || replyCount >= 3;
     
     res.json({
       status: referral.status,
@@ -571,21 +575,19 @@ exports.checkReferralStatus = async (req, res) => {
           description: 'Perfil completo con username y email'
         },
         minimumActivity: {
-          completed: hasRequiredActivity,
-          description: 'Crear 1 post Y al menos 2 comentarios',
+          completed: hasMinimumActivity,
+          description: 'Crear 1 post o 3 comentarios',
           progress: {
             posts: postCount,
-            replies: replyCount,
-            postsRequired: 1,
-            repliesRequired: 2
+            replies: replyCount
           }
         },
         minimumDays: {
-          completed: true, // 🔥 SIN REQUISITO DE TIEMPO
-          description: 'SIN REQUISITO DE TIEMPO',
+          completed: daysSinceRegistration >= 2,
+          description: 'Permanecer activo por 2 días',
           progress: {
-            current: 0,
-            required: 0
+            current: daysSinceRegistration,
+            required: 2
           }
         }
       },

@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Message = require('../models/Message');
 const Notification = require('../models/Notification');
-const Conversation = require('../models/Conversation');
 
 // Delete Message
 const deleteMessage = async (req, res) => {
@@ -238,43 +237,28 @@ const blockUser = async (req, res) => {
     const { userId } = req.params;
     const blockerId = req.user.userId;
 
-    console.log('Bloqueando usuario:', { blockerId, userId });
-
     // Validar IDs
     if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(blockerId)) {
       return res.status(400).json({ message: 'IDs inválidos' });
     }
 
-    // Buscar o crear conversación entre los dos usuarios
-    let conversation = await Conversation.findOne({
-      participants: { $all: [blockerId, userId], $size: 2 }
-    });
-
-    if (!conversation) {
-      // Si no existe conversación, crearla
-      conversation = await Conversation.create({
-        participants: [blockerId, userId],
-        blockedBy: [blockerId]
-      });
-    } else {
-      // Agregar bloqueador a blockedBy si no existe
-      if (!conversation.blockedBy.some(id => id.toString() === blockerId)) {
-        conversation.blockedBy.push(blockerId);
-        await conversation.save();
-      }
-    }
-
-    // También mantener en el modelo de usuario por compatibilidad
     const blocker = await User.findById(blockerId);
-    if (blocker && !blocker.blockedUsers.some(bId => bId.toString() === userId)) {
+    if (!blocker) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    // Agregar a blockedUsers si no existe
+    if (!blocker.blockedUsers.some(bId => bId.toString() === userId)) {
       blocker.blockedUsers.push(userId);
       await blocker.save();
     }
 
+    // Opcional: Agregar a blockedBy del bloqueado
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { blockedBy: blockerId }
+    }, { new: true });
+
     // Emitir socket
-    const chatId = [blockerId, userId].sort().join('-');
     if (req.io) {
-      req.io.to(chatId).emit('chatBlocked', { chatId, userId: blockerId });
+      req.io.to(userId).emit('userBlocked', { blockerId, message: 'Has sido bloqueado' });
     }
 
     res.json({ message: 'Usuario bloqueado exitosamente' });
@@ -612,25 +596,6 @@ const unblockUser = async (req, res) => {
 };
 
 
-// Get Online Users
-const getOnlineUsers = async (req, res) => {
-  try {
-    const io = req.io;
-    if (!io) {
-      return res.status(500).json({ message: 'Socket.IO no disponible' });
-    }
-
-    // Obtener todos los sockets conectados
-    const sockets = await io.fetchSockets();
-    const onlineUsers = sockets.map(socket => socket.userId).filter(Boolean);
-
-    res.json({ onlineUsers: [...new Set(onlineUsers)] });
-  } catch (error) {
-    console.error('Error en getOnlineUsers:', error);
-    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
-  }
-};
-
 // Exports (todas las funciones definidas arriba)
 module.exports = {
   deleteMessage,
@@ -648,6 +613,5 @@ module.exports = {
   sendRequest,
   acceptRequest,
   rejectRequest,
-  unblockUser,
-  getOnlineUsers
+  unblockUser
 };

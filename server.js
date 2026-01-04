@@ -259,6 +259,8 @@ const vipRoutes = require('./src/routes/vipRoutes');
 const referralRoutes = require('./src/routes/referralRoutes');
 const gameRoutes = require('./src/routes/gameRoutes');
 const cookieRoutes = require('./src/routes/cookieRoutes');
+const chatRoutes = require('./src/routes/chatRoutes');
+const reportRoutes = require('./src/routes/reportRoutes');
 
 // 🍪 Sistema de gestión de cookies
 const { 
@@ -283,6 +285,8 @@ app.use('/api/vip', vipRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/games', gameRoutes);
 app.use('/api/cookies', cookieRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Endpoint temporal para ejecutar seed de juegos (ELIMINAR DESPUÉS DE USAR)
 app.post('/api/admin/seed-games', async (req, res) => {
@@ -306,15 +310,9 @@ app.use((req, res, next) => {
     .catch(() => res.status(429).json({ message: 'Too Many Requests' }));
 });
 
-// Socket.IO
-io.on('connection', (socket) => {
-  console.log('🔌 User connected:', socket.id);
-  socket.on('join', (userId) => socket.join(userId));
-  socket.on('joinChat', (chatId) => socket.join(chatId));
-  socket.on('message', ({ chatId, msg }) => io.to(chatId).emit('message', { msg }));
-  socket.on('messagesRead', ({ chatId, userId }) => io.to(chatId).emit('messagesRead', { chatId, userId }));
-  socket.on('disconnect', () => console.log('🔌 User disconnected:', socket.id));
-});
+// 💬 Sistema de Chat en Tiempo Real con Socket.IO
+const socketHandler = require('./src/sockets/socketHandler');
+socketHandler.initialize(io);
 
 app.use((req, res, next) => {
   req.io = io;
