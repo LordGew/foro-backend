@@ -8,7 +8,7 @@ const referralController = require('../controllers/referralController');
  * y acreditar puntos automáticamente cuando se cumplen los requisitos.
  * 
  * Frecuencia: Cada 6 horas (00:00, 06:00, 12:00, 18:00 UTC)
- * Patrón cron: '0 */6 * * *'
+ * Patrón cron: 0 cada-6-horas
  */
 
 let cronJob = null;
