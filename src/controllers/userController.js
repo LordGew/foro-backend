@@ -378,7 +378,12 @@ const getUserProfile = async (req, res) => {
       return res.status(401).json({ message: 'Token inválido: falta userId' });
     }
     
-    const user = await User.findById(req.user.userId).select('-password');
+    const user = await User.findById(req.user.userId)
+      .select('-password')
+      .populate('activeRewards.emoji')
+      .populate('activeRewards.title')
+      .populate('activeRewards.theme')
+      .populate('activeRewards.frame');
     
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
@@ -401,7 +406,12 @@ const getUserById = async (req, res) => {
       return res.status(400).json({ message: 'Invalid user ID' });
     }
 
-    const user = await User.findById(id).select('-password');
+    const user = await User.findById(id)
+      .select('-password')
+      .populate('activeRewards.emoji')
+      .populate('activeRewards.title')
+      .populate('activeRewards.theme')
+      .populate('activeRewards.frame');
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json(user);

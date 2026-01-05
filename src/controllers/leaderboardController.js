@@ -9,8 +9,12 @@ exports.getAchievementLeaderboard = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const leaderboard = await User.find({ achievementPoints: { $gt: 0 } })
-      .select('username profileImage achievementPoints achievements xp level rank')
+      .select('username profileImage achievementPoints achievements xp level rank activeRewards')
       .populate('achievements.achievementId', 'name icon rarity')
+      .populate('activeRewards.emoji')
+      .populate('activeRewards.title')
+      .populate('activeRewards.theme')
+      .populate('activeRewards.frame')
       .sort({ achievementPoints: -1, achievements: -1 })
       .limit(parseInt(limit))
       .skip(skip)
@@ -50,7 +54,11 @@ exports.getXpLeaderboard = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const leaderboard = await User.find({ xp: { $gt: 0 } })
-      .select('username profileImage xp level rank postCount replyCount')
+      .select('username profileImage xp level rank postCount replyCount activeRewards')
+      .populate('activeRewards.emoji')
+      .populate('activeRewards.title')
+      .populate('activeRewards.theme')
+      .populate('activeRewards.frame')
       .sort({ xp: -1 })
       .limit(parseInt(limit))
       .skip(skip)
@@ -88,7 +96,11 @@ exports.getPostsLeaderboard = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const leaderboard = await User.find({ postCount: { $gt: 0 } })
-      .select('username profileImage postCount replyCount xp')
+      .select('username profileImage postCount replyCount xp activeRewards')
+      .populate('activeRewards.emoji')
+      .populate('activeRewards.title')
+      .populate('activeRewards.theme')
+      .populate('activeRewards.frame')
       .sort({ postCount: -1 })
       .limit(parseInt(limit))
       .skip(skip)
@@ -125,7 +137,11 @@ exports.getReferralsLeaderboard = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const leaderboard = await User.find({ totalReferrals: { $gt: 0 } })
-      .select('username profileImage totalReferrals referralPoints')
+      .select('username profileImage totalReferrals referralPoints activeRewards')
+      .populate('activeRewards.emoji')
+      .populate('activeRewards.title')
+      .populate('activeRewards.theme')
+      .populate('activeRewards.frame')
       .sort({ totalReferrals: -1, referralPoints: -1 })
       .limit(parseInt(limit))
       .skip(skip)
