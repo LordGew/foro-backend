@@ -302,10 +302,77 @@ app.post('/api/admin/seed-games', async (req, res) => {
   }
 });
 
+// Endpoint temporal para migrar roles (ELIMINAR DESPUÉS DE USAR)
+app.post('/api/admin/migrate-roles', async (req, res) => {
+  try {
+    console.log(' Iniciando migración de roles...');
+    
+    const roleMapping = {
+      'user': 'Player',
+      'moderator': 'GameMaster',
+      'admin': 'Admin'
+    };
+
+    let totalMigrated = 0;
+    const results = {};
+
+    for (const [oldRole, newRole] of Object.entries(roleMapping)) {
+      const count = await User.countDocuments({ role: oldRole });
+      
+      if (count > 0) {
+        console.log(` Migrando ${count} usuarios de '${oldRole}' a '${newRole}'...`);
+        const result = await User.updateMany(
+          { role: oldRole },
+          { $set: { role: newRole } }
+        );
+        results[oldRole] = { count, migrated: result.modifiedCount };
+        totalMigrated += result.modifiedCount;
+      } else {
+        results[oldRole] = { count: 0, migrated: 0 };
+      }
+    }
+
+    // Corregir roles inválidos
+    const invalidCount = await User.countDocuments({
+      role: { $nin: ['Player', 'GameMaster', 'Admin'] }
+    });
+
+    if (invalidCount > 0) {
+      const fixResult = await User.updateMany(
+        { role: { $nin: ['Player', 'GameMaster', 'Admin'] } },
+        { $set: { role: 'Player' } }
+      );
+      results.invalid = { count: invalidCount, fixed: fixResult.modifiedCount };
+      totalMigrated += fixResult.modifiedCount;
+    }
+
+    // Resumen final
+    const playerCount = await User.countDocuments({ role: 'Player' });
+    const gmCount = await User.countDocuments({ role: 'GameMaster' });
+    const adminCount = await User.countDocuments({ role: 'Admin' });
+
+    console.log(' Migración completada');
+    res.json({ 
+      success: true, 
+      message: 'Migración de roles completada',
+      totalMigrated,
+      results,
+      summary: {
+        Player: playerCount,
+        GameMaster: gmCount,
+        Admin: adminCount,
+        total: playerCount + gmCount + adminCount
+      }
+    });
+  } catch (error) {
+    console.error('Error en migración:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Rate limiting
 const ratePoints = isProduction ? 50 : 100;
 const rateLimiter = new RateLimiterMemory({ points: ratePoints, duration: 60 });
-app.use((req, res, next) => {
   if (req.path.includes('/replies') || req.path.includes('/posts')) return next();
   rateLimiter.consume(req.ip)
     .then(() => next())
