@@ -252,10 +252,67 @@ const fixCategoriesGame = async (req, res) => {
   }
 };
 
+// Migrar roles antiguos a nuevos
+const migrateRoles = async (req, res) => {
+  try {
+    console.log(' Iniciando migración de roles...');
+    
+    // Mapeo de roles antiguos a nuevos
+    const roleMapping = {
+      'Player': 'player',
+      'GameMaster': 'gamemaster',
+      'Admin': 'admin'
+    };
+    
+    let migratedCount = 0;
+    
+    // Buscar usuarios con roles antiguos
+    for (const [oldRole, newRole] of Object.entries(roleMapping)) {
+      const result = await User.updateMany(
+        { role: oldRole },
+        { $set: { role: newRole } }
+      );
+      
+      if (result.modifiedCount > 0) {
+        console.log(` Migrados ${result.modifiedCount} usuarios de "${oldRole}" a "${newRole}"`);
+        migratedCount += result.modifiedCount;
+      }
+    }
+    
+    // Verificar resultado
+    const roleCounts = await User.aggregate([
+      {
+        $group: {
+          _id: '$role',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    console.log(' Distribución de roles después de la migración:', roleCounts);
+    
+    res.json({
+      success: true,
+      message: `Migración completada: ${migratedCount} usuarios actualizados`,
+      migratedCount,
+      currentRoles: roleCounts
+    });
+    
+  } catch (err) {
+    console.error(' Error en migración de roles:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al migrar roles',
+      error: err.message
+    });
+  }
+};
+
 module.exports = { 
   updateForumSettings, 
   getForumSettings, 
   getUsers,
   fixCategoriesGame,
-  applyManualReferral
+  applyManualReferral,
+  migrateRoles
 };
