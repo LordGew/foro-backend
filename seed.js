@@ -7,6 +7,7 @@ const AdminSettings = require('./src/models/AdminSettings');
 const connectDB = require('./src/config/db');
 const seedRewards = require('./src/seeds/rewardsSeed');
 const seedGames = require('./src/seeds/gamesSeed');
+const seedAchievements = require('./src/seeds/achievementsSeed');
 
 require('dotenv').config();
 
@@ -53,6 +54,9 @@ const seed = async () => {
 
     // --- 4. Crear recompensas iniciales ---
     await seedRewards();
+
+    // --- 5. Crear logros iniciales ---
+    await seedAchievements();
 
     console.log('✅ Seed completado con éxito');
   } catch (err) {

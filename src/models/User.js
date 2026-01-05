@@ -210,6 +210,26 @@ const UserSchema = new mongoose.Schema({
       ref: 'RewardItem',
       default: null
     }
+  },
+  // Logros desbloqueados
+  achievements: [{
+    achievementId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Achievement',
+      required: true
+    },
+    unlockedAt: {
+      type: Date,
+      default: Date.now
+    },
+    progress: {
+      type: Number,
+      default: 0
+    }
+  }],
+  achievementPoints: {
+    type: Number,
+    default: 0
   }
 },
 {
