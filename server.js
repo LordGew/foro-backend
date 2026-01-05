@@ -373,6 +373,7 @@ app.post('/api/admin/migrate-roles', async (req, res) => {
 // Rate limiting
 const ratePoints = isProduction ? 50 : 100;
 const rateLimiter = new RateLimiterMemory({ points: ratePoints, duration: 60 });
+app.use((req, res, next) => {
   if (req.path.includes('/replies') || req.path.includes('/posts')) return next();
   rateLimiter.consume(req.ip)
     .then(() => next())
