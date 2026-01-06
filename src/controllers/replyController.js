@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { sanitizeContent } = require('../utils/sanitize');
 const { likePost, dislikePost } = require('./postController');
+const { checkAndGrantAchievements } = require('../utils/achievementChecker');
 
 
 // Función para añadir XP por crear una respuesta (línea ~18)
@@ -127,6 +128,9 @@ const createReply = async (req, res) => {
       .populate('likes', 'username profileImage')
       .populate('dislikes', 'username profileImage')
       .populate('parentReply', 'content author');
+
+    // Verificar logros generales (replies, XP, etc.)
+    await checkAndGrantAchievements(req.user.userId, 'reply_created');
       
     res.status(201).json(populatedReply);
   } catch (err) {

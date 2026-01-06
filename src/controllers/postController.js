@@ -7,6 +7,7 @@ const { sanitizeContent } = require('../utils/sanitize');
 const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 const slugify = require('slugify');
+const { checkAndGrantAchievements, checkSpecialAchievement } = require('../utils/achievementChecker');
 
 // Role hierarchy ranks (higher number = higher rank)
 const roleRanks = {
@@ -130,6 +131,17 @@ const createPost = async (req, res) => {
     );
 
     console.log(`Post creado y counters actualizados para usuario ${req.user.userId}`);
+
+    // Verificar logros especiales basados en hora de publicación
+    const postHour = new Date().getHours();
+    if (postHour < 6) {
+      await checkSpecialAchievement(req.user.userId, 'early_bird');
+    } else if (postHour >= 0 && postHour < 3) {
+      await checkSpecialAchievement(req.user.userId, 'night_owl');
+    }
+
+    // Verificar logros generales (posts, XP, etc.)
+    await checkAndGrantAchievements(req.user.userId, 'post_created');
 
     res.status(201).json(post);
   } catch (err) {
