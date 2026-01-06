@@ -40,6 +40,62 @@ exports.getAchievementsByCategory = async (req, res) => {
 };
 
 /**
+ * Obtener todos los logros con progreso del usuario
+ */
+exports.getUserAchievementsWithProgress = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    // Obtener todos los logros activos
+    const allAchievements = await Achievement.find({ isActive: true })
+      .populate('reward.rewardId')
+      .sort({ category: 1, points: 1 });
+    
+    // Mapear logros con información de progreso del usuario
+    const achievementsWithProgress = allAchievements.map(achievement => {
+      // Verificar si el usuario ya tiene este logro
+      const userAchievement = user.achievements.find(
+        a => a.achievementId.toString() === achievement._id.toString()
+      );
+      
+      const isUnlocked = !!userAchievement;
+      const progress = isUnlocked ? 100 : calculateProgress(user, achievement);
+      
+      return {
+        _id: achievement._id,
+        name: achievement.name,
+        description: achievement.description,
+        icon: achievement.icon,
+        category: achievement.category,
+        requirement: achievement.requirement,
+        reward: achievement.reward,
+        rarity: achievement.rarity,
+        points: achievement.points,
+        isHidden: achievement.isHidden,
+        isUnlocked,
+        progress,
+        unlockedAt: userAchievement?.unlockedAt || null
+      };
+    });
+    
+    res.json({
+      achievements: achievementsWithProgress,
+      achievementPoints: user.achievementPoints,
+      totalAchievements: allAchievements.length,
+      unlockedCount: user.achievements.length
+    });
+  } catch (err) {
+    console.error('Error getting user achievements with progress:', err);
+    res.status(500).json({ message: 'Error al obtener logros', error: err.message });
+  }
+};
+
+/**
  * Obtener logros del usuario actual
  */
 exports.getMyAchievements = async (req, res) => {
