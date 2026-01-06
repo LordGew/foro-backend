@@ -11,7 +11,10 @@ exports.getAllAchievements = async (req, res) => {
       .populate('reward.rewardId')
       .sort({ rarity: 1, points: 1 });
     
-    res.json(achievements);
+    res.json({ 
+      achievements,
+      total: achievements.length 
+    });
   } catch (err) {
     console.error('Error getting achievements:', err);
     res.status(500).json({ message: 'Error al obtener logros', error: err.message });
@@ -32,7 +35,11 @@ exports.getAchievementsByCategory = async (req, res) => {
       .populate('reward.rewardId')
       .sort({ points: 1 });
     
-    res.json(achievements);
+    res.json({ 
+      achievements,
+      total: achievements.length,
+      category 
+    });
   } catch (err) {
     console.error('Error getting achievements by category:', err);
     res.status(500).json({ message: 'Error al obtener logros', error: err.message });
