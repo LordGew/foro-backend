@@ -48,10 +48,10 @@
     "yamljs": "^0.3.0"
   },
   "devDependencies": {
+    "artillery": "^2.0.0",
     "jest": "^30.0.5",
-    "supertest": "^7.1.4",
-    "mongodb-memory-server": "^9.1.6",
-    "artillery": "^2.0.0"
+    "mongodb-memory-server": "^9.5.0",
+    "supertest": "^7.1.4"
   },
   "engines": {
     "node": "22.x"

@@ -937,6 +937,38 @@ const cleanProfileImages = async () => {
   }
 };
 
+// Actualizar presentación RPG
+const updateRoleplayIntro = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { roleplayIntro } = req.body;
+
+    if (!roleplayIntro || roleplayIntro.trim() === '') {
+      return res.status(400).json({ message: 'La presentación no puede estar vacía' });
+    }
+
+    if (roleplayIntro.length > 200) {
+      return res.status(400).json({ message: 'La presentación no puede exceder 200 caracteres' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { roleplayIntro: roleplayIntro.trim() },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    console.log(`✅ Presentación RPG actualizada para ${user.username}: "${roleplayIntro}"`);
+    res.json({ message: 'Presentación actualizada exitosamente', user });
+  } catch (error) {
+    console.error('Error al actualizar presentación RPG:', error);
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+  }
+};
+
 module.exports = { 
   register, 
   login, 
@@ -963,5 +995,6 @@ module.exports = {
   unblockUser,
   acceptRequest,
   cleanProfileImages,
-  refreshToken
+  refreshToken,
+  updateRoleplayIntro
 };

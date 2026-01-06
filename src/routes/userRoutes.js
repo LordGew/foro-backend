@@ -24,7 +24,8 @@ const {
   createPaymentIntent,
   handleStripeWebhook,
   unblockUser,
-  refreshToken
+  refreshToken,
+  updateRoleplayIntro
 } = require('../controllers/userController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const rbacMiddleware = require('../middlewares/rbacMiddleware');
@@ -135,5 +136,8 @@ router.patch('/update-profile-image', authMiddleware, uploadProfileImageToCloudi
   }
 });
 // --- FIN NUEVO ---
+
+// Ruta para actualizar presentación RPG
+router.put('/roleplay-intro', authMiddleware, updateRoleplayIntro);
 
 module.exports = router;

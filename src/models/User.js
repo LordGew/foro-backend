@@ -53,6 +53,11 @@ const UserSchema = new mongoose.Schema({
     enum: ['plain', 'markdown'],
     default: 'plain'
   },
+  roleplayIntro: {
+    type: String,
+    maxlength: 200,
+    default: 'el aventurero'
+  },
   socialLinks: {
     twitter: { type: String, maxlength: 100 },
     discord: { type: String, maxlength: 100 },
