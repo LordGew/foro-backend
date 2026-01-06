@@ -431,8 +431,12 @@ const startServer = async () => {
     const { cleanProfileImages } = require('./src/controllers/userController');
     await cleanProfileImages();
 
-    // Ejecutar seed
+    // Ejecutar seed de datos iniciales
     await seed();
+
+    // Ejecutar seed de logros (solo si no existen)
+    const seedAchievements = require('./src/scripts/seedAchievements');
+    await seedAchievements();
 
     // Iniciar cron job de expiración VIP
     const { startVipExpirationNotifier } = require('./src/jobs/vipExpirationNotifier');

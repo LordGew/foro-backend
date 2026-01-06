@@ -281,12 +281,15 @@ const achievements = [
 
 async function seedAchievements() {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log('📦 Conectado a MongoDB');
+    // Verificar si ya existen logros
+    const existingCount = await Achievement.countDocuments();
+    
+    if (existingCount > 0) {
+      console.log(`ℹ️  Ya existen ${existingCount} logros en la base de datos. Saltando seed.`);
+      return { skipped: true, count: existingCount };
+    }
 
-    // Limpiar logros existentes
-    await Achievement.deleteMany({});
-    console.log('🗑️  Logros anteriores eliminados');
+    console.log('📦 Creando logros iniciales...');
 
     // Insertar nuevos logros
     const inserted = await Achievement.insertMany(achievements);
@@ -309,13 +312,31 @@ async function seedAchievements() {
       console.log(`   - ${rar._id}: ${rar.count} logros`);
     });
 
-    await mongoose.disconnect();
-    console.log('\n✅ Seed completado exitosamente');
-    process.exit(0);
+    return { created: true, count: inserted.length };
   } catch (error) {
-    console.error('❌ Error en seed:', error);
-    process.exit(1);
+    console.error('❌ Error en seed de logros:', error);
+    throw error;
   }
 }
 
-seedAchievements();
+// Si se ejecuta directamente desde línea de comandos
+if (require.main === module) {
+  (async () => {
+    try {
+      await mongoose.connect(process.env.MONGO_URI);
+      console.log('📦 Conectado a MongoDB');
+      
+      await seedAchievements();
+      
+      await mongoose.disconnect();
+      console.log('\n✅ Seed completado exitosamente');
+      process.exit(0);
+    } catch (error) {
+      console.error('❌ Error:', error);
+      process.exit(1);
+    }
+  })();
+}
+
+// Exportar para uso en el servidor
+module.exports = seedAchievements;
