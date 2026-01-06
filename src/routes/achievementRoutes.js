@@ -16,5 +16,6 @@ router.post('/check-all', authMiddleware, achievementController.checkAllAchievem
 router.post('/', authMiddleware, rbacMiddleware(['Admin']), achievementController.createAchievement);
 router.put('/:achievementId', authMiddleware, rbacMiddleware(['Admin']), achievementController.updateAchievement);
 router.delete('/:achievementId', authMiddleware, rbacMiddleware(['Admin']), achievementController.deleteAchievement);
+router.delete('/reset/:userId', authMiddleware, rbacMiddleware(['Admin']), achievementController.resetUserAchievements);
 
 module.exports = router;

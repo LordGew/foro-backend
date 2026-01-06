@@ -380,6 +380,40 @@ exports.deleteAchievement = async (req, res) => {
 };
 
 /**
+ * Resetear logros de un usuario (solo Admin)
+ */
+exports.resetUserAchievements = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // Limpiar todos los logros
+    user.achievements = [];
+    user.achievementPoints = 0;
+    
+    await user.save();
+
+    console.log(`🔄 Logros reseteados para usuario: ${user.username}`);
+    
+    res.json({ 
+      message: `Logros reseteados exitosamente para ${user.username}`,
+      user: {
+        username: user.username,
+        achievementsCleared: true,
+        achievementPoints: 0
+      }
+    });
+  } catch (err) {
+    console.error('Error al resetear logros:', err);
+    res.status(500).json({ message: 'Error al resetear logros', error: err.message });
+  }
+};
+
+/**
  * Función auxiliar: Verificar si cumple requisitos
  */
 function checkRequirement(user, achievement) {
@@ -431,3 +465,16 @@ function calculateProgress(user, achievement) {
   
   return Math.min(100, Math.round((current / value) * 100));
 }
+
+module.exports = {
+  getAllAchievements: exports.getAllAchievements,
+  getAchievementsByCategory: exports.getAchievementsByCategory,
+  getUserAchievementsWithProgress: exports.getUserAchievementsWithProgress,
+  getMyAchievements: exports.getMyAchievements,
+  createAchievement: exports.createAchievement,
+  updateAchievement: exports.updateAchievement,
+  deleteAchievement: exports.deleteAchievement,
+  checkAchievement: exports.checkAchievement,
+  checkAllAchievements: exports.checkAllAchievements,
+  resetUserAchievements: exports.resetUserAchievements
+};
