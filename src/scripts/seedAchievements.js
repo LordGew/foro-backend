@@ -17,14 +17,36 @@ const achievements = [
     isHidden: false
   },
   {
+    name: 'Explorador Curioso',
+    description: 'Alcanza el nivel 3',
+    icon: '🔍',
+    category: 'level',
+    requirement: { type: 'xp', value: 40 },
+    reward: { type: 'points', points: 15 },
+    rarity: 'common',
+    points: 15,
+    isHidden: false
+  },
+  {
     name: 'Aventurero Novato',
     description: 'Alcanza el nivel 5',
     icon: '⚔️',
     category: 'level',
-    requirement: { type: 'xp', value: 50 },
+    requirement: { type: 'xp', value: 160 },
     reward: { type: 'points', points: 25 },
     rarity: 'common',
     points: 25,
+    isHidden: false
+  },
+  {
+    name: 'Cazador Hábil',
+    description: 'Alcanza el nivel 7',
+    icon: '🏹',
+    category: 'level',
+    requirement: { type: 'xp', value: 360 },
+    reward: { type: 'points', points: 35 },
+    rarity: 'common',
+    points: 35,
     isHidden: false
   },
   {
@@ -32,10 +54,21 @@ const achievements = [
     description: 'Alcanza el nivel 10',
     icon: '🛡️',
     category: 'level',
-    requirement: { type: 'xp', value: 100 },
+    requirement: { type: 'xp', value: 810 },
     reward: { type: 'points', points: 50 },
     rarity: 'rare',
     points: 50,
+    isHidden: false
+  },
+  {
+    name: 'Campeón Valiente',
+    description: 'Alcanza el nivel 15',
+    icon: '⚡',
+    category: 'level',
+    requirement: { type: 'xp', value: 1960 },
+    reward: { type: 'points', points: 75 },
+    rarity: 'rare',
+    points: 75,
     isHidden: false
   },
   {
@@ -43,10 +76,21 @@ const achievements = [
     description: 'Alcanza el nivel 20',
     icon: '👑',
     category: 'level',
-    requirement: { type: 'xp', value: 350 },
+    requirement: { type: 'xp', value: 3610 },
     reward: { type: 'points', points: 100 },
     rarity: 'epic',
     points: 100,
+    isHidden: false
+  },
+  {
+    name: 'Señor de la Guerra',
+    description: 'Alcanza el nivel 25',
+    icon: '🔥',
+    category: 'level',
+    requirement: { type: 'xp', value: 5760 },
+    reward: { type: 'points', points: 150 },
+    rarity: 'epic',
+    points: 150,
     isHidden: false
   },
   {
@@ -54,10 +98,32 @@ const achievements = [
     description: 'Alcanza el nivel 30',
     icon: '⭐',
     category: 'level',
-    requirement: { type: 'xp', value: 750 },
+    requirement: { type: 'xp', value: 8410 },
     reward: { type: 'points', points: 200 },
     rarity: 'legendary',
     points: 200,
+    isHidden: false
+  },
+  {
+    name: 'Titán de Azeroth',
+    description: 'Alcanza el nivel 40',
+    icon: '💎',
+    category: 'level',
+    requirement: { type: 'xp', value: 15210 },
+    reward: { type: 'points', points: 300 },
+    rarity: 'legendary',
+    points: 300,
+    isHidden: false
+  },
+  {
+    name: 'Dios de la Guerra',
+    description: 'Alcanza el nivel 50',
+    icon: '👹',
+    category: 'level',
+    requirement: { type: 'xp', value: 24010 },
+    reward: { type: 'points', points: 500 },
+    rarity: 'legendary',
+    points: 500,
     isHidden: false
   },
 
@@ -285,8 +351,40 @@ async function seedAchievements() {
     const existingCount = await Achievement.countDocuments();
     
     if (existingCount > 0) {
-      console.log(`ℹ️  Ya existen ${existingCount} logros en la base de datos. Saltando seed.`);
-      return { skipped: true, count: existingCount };
+      console.log(`ℹ️  Ya existen ${existingCount} logros en la base de datos.`);
+      console.log('🔄 Actualizando valores de XP para alinear con sistema de niveles...');
+      
+      // Actualizar logros de nivel con valores correctos
+      const levelUpdates = [
+        { name: 'Aventurero Novato', xp: 160 },
+        { name: 'Guerrero Experimentado', xp: 810 },
+        { name: 'Héroe de Azeroth', xp: 3610 },
+        { name: 'Leyenda Viviente', xp: 8410 }
+      ];
+      
+      for (const update of levelUpdates) {
+        await Achievement.updateOne(
+          { name: update.name },
+          { $set: { 'requirement.value': update.xp } }
+        );
+      }
+      
+      // Agregar nuevos logros intermedios si no existen
+      const newAchievements = achievements.filter(a => 
+        ['Explorador Curioso', 'Cazador Hábil', 'Campeón Valiente', 
+         'Señor de la Guerra', 'Titán de Azeroth', 'Dios de la Guerra'].includes(a.name)
+      );
+      
+      for (const achievement of newAchievements) {
+        const exists = await Achievement.findOne({ name: achievement.name });
+        if (!exists) {
+          await Achievement.create(achievement);
+          console.log(`  ✅ Agregado: ${achievement.name}`);
+        }
+      }
+      
+      console.log('✅ Sistema de logros actualizado y unificado');
+      return { updated: true, count: existingCount };
     }
 
     console.log('📦 Creando logros iniciales...');
