@@ -354,19 +354,29 @@ async function seedAchievements() {
       console.log(`ℹ️  Ya existen ${existingCount} logros en la base de datos.`);
       console.log('🔄 Actualizando valores de XP para alinear con sistema de niveles...');
       
-      // Actualizar logros de nivel con valores correctos
+      // Actualizar TODOS los logros de nivel con valores correctos
       const levelUpdates = [
+        { name: 'Primer Paso', xp: 10 },
+        { name: 'Explorador Curioso', xp: 40 },
         { name: 'Aventurero Novato', xp: 160 },
+        { name: 'Cazador Hábil', xp: 360 },
         { name: 'Guerrero Experimentado', xp: 810 },
+        { name: 'Campeón Valiente', xp: 1960 },
         { name: 'Héroe de Azeroth', xp: 3610 },
-        { name: 'Leyenda Viviente', xp: 8410 }
+        { name: 'Señor de la Guerra', xp: 5760 },
+        { name: 'Leyenda Viviente', xp: 8410 },
+        { name: 'Titán de Azeroth', xp: 15210 },
+        { name: 'Dios de la Guerra', xp: 24010 }
       ];
       
       for (const update of levelUpdates) {
-        await Achievement.updateOne(
+        const result = await Achievement.updateOne(
           { name: update.name },
           { $set: { 'requirement.value': update.xp } }
         );
+        if (result.modifiedCount > 0) {
+          console.log(`  ✅ Actualizado: ${update.name} -> ${update.xp} XP`);
+        }
       }
       
       // Agregar nuevos logros intermedios si no existen
