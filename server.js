@@ -264,6 +264,7 @@ const reportRoutes = require('./src/routes/reportRoutes');
 const healthRoutes = require('./src/routes/healthRoutes');
 const achievementRoutes = require('./src/routes/achievementRoutes');
 const leaderboardRoutes = require('./src/routes/leaderboardRoutes');
+const shopRoutes = require('./src/routes/shopRoutes');
 
 // 🍪 Sistema de gestión de cookies
 const { 
@@ -292,6 +293,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/shop', shopRoutes);
 app.use('/api', healthRoutes);
 
 // Endpoint temporal para ejecutar seed de juegos (ELIMINAR DESPUÉS DE USAR)
