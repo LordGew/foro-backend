@@ -235,7 +235,12 @@ const UserSchema = new mongoose.Schema({
   achievementPoints: {
     type: Number,
     default: 0
-  }
+  },
+  // Badges/Insignias compradas
+  badges: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Badge'
+  }]
 },
 {
   timestamps: true,
