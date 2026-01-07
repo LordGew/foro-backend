@@ -119,8 +119,18 @@ exports.getMyAchievements = async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
     
+    // Filtrar logros huérfanos (achievementId null o undefined)
+    const validAchievements = user.achievements.filter(a => a.achievementId != null);
+    
+    // Si hay logros huérfanos, limpiarlos del usuario
+    if (validAchievements.length < user.achievements.length) {
+      console.log(`🧹 Limpiando ${user.achievements.length - validAchievements.length} logros huérfanos del usuario ${user.username}`);
+      user.achievements = validAchievements;
+      await user.save();
+    }
+    
     res.json({
-      achievements: user.achievements,
+      achievements: validAchievements,
       achievementPoints: user.achievementPoints
     });
   } catch (err) {
