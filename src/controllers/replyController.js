@@ -129,6 +129,10 @@ const createReply = async (req, res) => {
       .populate('dislikes', 'username profileImage')
       .populate('parentReply', 'content author');
 
+    // Actualizar progreso de misiones diarias
+    const { updateMissionProgress } = require('./missionController');
+    await updateMissionProgress(req.user.userId, 'create_reply', 1);
+
     // Verificar logros generales (replies, XP, etc.)
     await checkAndGrantAchievements(req.user.userId, 'reply_created');
       

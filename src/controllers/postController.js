@@ -132,6 +132,10 @@ const createPost = async (req, res) => {
 
     console.log(`Post creado y counters actualizados para usuario ${req.user.userId}`);
 
+    // Actualizar progreso de misiones diarias
+    const { updateMissionProgress } = require('./missionController');
+    await updateMissionProgress(req.user.userId, 'create_post', 1, category);
+
     // Verificar logros especiales basados en hora de publicación
     const postHour = new Date().getHours();
     if (postHour < 6) {
@@ -144,32 +148,6 @@ const createPost = async (req, res) => {
     await checkAndGrantAchievements(req.user.userId, 'post_created');
 
     res.status(201).json(post);
-  } catch (err) {
-    console.error('Error al crear post:', err);
-    if (err.name === 'ValidationError') {
-      const messages = Object.values(err.errors).map(err => err.message);
-      return res.status(400).json({ message: 'Error de validación', errors: messages });
-    }
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'La imagen no debe superar los 5MB' });
-    }
-    if (err.message && err.message.includes('Solo se permiten imágenes')) {
-      return res.status(400).json({ message: err.message });
-    }
-    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
-  }
-};
-
-// Nueva función para obtener post por slug
-const getPostByParam = async (req, res) => {
-  const param = req.params.param;
-  console.log('Procesando ruta por param:', param); // Depuración
-
-  try {
-    let post;
-    if (mongoose.Types.ObjectId.isValid(param)) {
-      // Si es un ID válido, buscar por ID
-      post = await Post.findById(param);
     } else {
       // Si no, buscar por slug
       post = await Post.findOne({ slug: param });

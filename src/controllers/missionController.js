@@ -212,6 +212,16 @@ exports.updateMissionProgress = async (userId, missionType, value = 1, categoryI
         if (progress.progress >= mission.requirement.value) {
           progress.completed = true;
           progress.completedAt = new Date();
+          
+          // Crear notificación de misión completada
+          const Notification = require('../models/Notification');
+          await Notification.create({
+            user: userId,
+            type: 'mission_completed',
+            message: `¡Misión completada! "${mission.title}" - Reclama tu recompensa de ${mission.reward.points} puntos`,
+            link: '/daily-missions',
+            read: false
+          });
         }
         
         await progress.save();

@@ -443,6 +443,14 @@ const startServer = async () => {
     const seedAchievements = require('./src/scripts/seedAchievements');
     await seedAchievements();
 
+    // Ejecutar seed de achievements por rachas
+    const seedStreakAchievements = require('./src/scripts/seedStreakAchievements');
+    await seedStreakAchievements();
+
+    // Ejecutar seed de badges de eventos
+    const seedEventBadges = require('./src/scripts/seedEventBadges');
+    await seedEventBadges();
+
     // Iniciar cron job de expiración VIP
     const { startVipExpirationNotifier } = require('./src/jobs/vipExpirationNotifier');
     startVipExpirationNotifier();
