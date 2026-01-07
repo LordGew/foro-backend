@@ -424,6 +424,26 @@ exports.resetUserAchievements = async (req, res) => {
 };
 
 /**
+ * Ejecutar seed de logros manualmente (solo Admin)
+ */
+exports.runSeedAchievements = async (req, res) => {
+  try {
+    const seedAchievements = require('../scripts/seedAchievements');
+    
+    console.log('🌱 Ejecutando seed de logros manualmente...');
+    const result = await seedAchievements();
+    
+    res.json({
+      message: 'Seed de logros ejecutado exitosamente',
+      result
+    });
+  } catch (err) {
+    console.error('Error ejecutando seed de logros:', err);
+    res.status(500).json({ message: 'Error al ejecutar seed', error: err.message });
+  }
+};
+
+/**
  * Función auxiliar: Verificar si cumple requisitos
  */
 function checkRequirement(user, achievement) {
@@ -477,14 +497,15 @@ function calculateProgress(user, achievement) {
 }
 
 module.exports = {
-  getAllAchievements: exports.getAllAchievements,
-  getAchievementsByCategory: exports.getAchievementsByCategory,
-  getUserAchievementsWithProgress: exports.getUserAchievementsWithProgress,
-  getMyAchievements: exports.getMyAchievements,
-  createAchievement: exports.createAchievement,
-  updateAchievement: exports.updateAchievement,
-  deleteAchievement: exports.deleteAchievement,
-  checkAchievement: exports.checkAchievement,
-  checkAllAchievements: exports.checkAllAchievements,
-  resetUserAchievements: exports.resetUserAchievements
+  getAllAchievements,
+  getAchievementsByCategory,
+  getUserAchievementsWithProgress,
+  getMyAchievements,
+  checkAchievement,
+  checkAllAchievements,
+  createAchievement,
+  updateAchievement,
+  deleteAchievement,
+  resetUserAchievements,
+  runSeedAchievements
 };

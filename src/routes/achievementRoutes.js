@@ -17,5 +17,6 @@ router.post('/', authMiddleware, rbacMiddleware(['Admin']), achievementControlle
 router.put('/:achievementId', authMiddleware, rbacMiddleware(['Admin']), achievementController.updateAchievement);
 router.delete('/:achievementId', authMiddleware, rbacMiddleware(['Admin']), achievementController.deleteAchievement);
 router.delete('/reset/:userId', authMiddleware, rbacMiddleware(['Admin']), achievementController.resetUserAchievements);
+router.post('/admin/seed', authMiddleware, rbacMiddleware(['Admin']), achievementController.runSeedAchievements);
 
 module.exports = router;
