@@ -240,7 +240,22 @@ const UserSchema = new mongoose.Schema({
   badges: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Badge'
-  }]
+  }],
+  // Sistema de rachas diarias
+  dailyStreak: {
+    current: {
+      type: Number,
+      default: 0
+    },
+    longest: {
+      type: Number,
+      default: 0
+    },
+    lastLoginDate: {
+      type: Date,
+      default: null
+    }
+  }
 },
 {
   timestamps: true,

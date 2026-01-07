@@ -266,6 +266,7 @@ const achievementRoutes = require('./src/routes/achievementRoutes');
 const leaderboardRoutes = require('./src/routes/leaderboardRoutes');
 const shopRoutes = require('./src/routes/shopRoutes');
 const badgeRoutes = require('./src/routes/badgeRoutes');
+const missionRoutes = require('./src/routes/missionRoutes');
 
 // 🍪 Sistema de gestión de cookies
 const { 
@@ -449,6 +450,14 @@ const startServer = async () => {
     // Iniciar cron job de validación de referidos
     const { startReferralValidator } = require('./src/jobs/referralValidator');
     startReferralValidator();
+
+    // Iniciar cron job de misiones diarias
+    const { startDailyMissionReset } = require('./src/jobs/dailyMissionReset');
+    startDailyMissionReset();
+
+    // Generar misiones del día si no existen
+    const { generateDailyMissions } = require('./src/controllers/missionController');
+    await generateDailyMissions();
 
     // Iniciar servidor
     const PORT = process.env.PORT || 5000;
