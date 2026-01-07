@@ -371,7 +371,7 @@ async function seedAchievements() {
       
       // Agregar nuevos logros intermedios si no existen
       const newAchievements = achievements.filter(a => 
-        ['Explorador Curioso', 'Cazador Hábil', 'Campeón Valiente', 
+        ['Primer Paso', 'Explorador Curioso', 'Cazador Hábil', 'Campeón Valiente', 
          'Señor de la Guerra', 'Titán de Azeroth', 'Dios de la Guerra'].includes(a.name)
       );
       
