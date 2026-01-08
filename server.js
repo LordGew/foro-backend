@@ -312,6 +312,22 @@ app.post('/api/admin/seed-games', async (req, res) => {
   }
 });
 
+// Endpoint temporal para ejecutar seed de badges (ELIMINAR DESPUÉS DE USAR)
+app.post('/api/admin/seed-badges', async (req, res) => {
+  try {
+    const seedBadges = require('./src/seeds/badgesSeed');
+    const badges = await seedBadges();
+    res.json({ 
+      success: true, 
+      message: `${badges.length} badges creados exitosamente`,
+      count: badges.length
+    });
+  } catch (error) {
+    console.error('Error en seed de badges:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Endpoint temporal para migrar roles (ELIMINAR DESPUÉS DE USAR)
 app.post('/api/admin/migrate-roles', async (req, res) => {
   try {
