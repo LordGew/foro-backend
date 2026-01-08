@@ -687,6 +687,234 @@ class ChatController {
       });
     }
   }
+
+  // Silenciar usuario en un chat
+  async muteUser(req, res) {
+    try {
+      const { chatId, userId } = req.params;
+      const { duration } = req.body; // duración en minutos
+      
+      // Verificar permisos (admin o moderador)
+      if (!['Admin', 'GameMaster'].includes(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para silenciar usuarios'
+        });
+      }
+      
+      const chatRoom = await ChatRoom.findById(chatId);
+      
+      if (!chatRoom) {
+        return res.status(404).json({
+          success: false,
+          message: 'Chat no encontrado'
+        });
+      }
+      
+      // Calcular duración del mute (por defecto 30 minutos)
+      const muteDuration = duration ? duration * 60 * 1000 : 30 * 60 * 1000;
+      
+      await chatRoom.muteParticipant(userId, muteDuration);
+      
+      // Crear acción de moderación
+      const moderationAction = new ModerationAction({
+        actionType: 'mute',
+        targetUser: userId,
+        moderator: req.user._id,
+        reason: 'Silenciado en chat',
+        chatRoom: chatId,
+        duration: muteDuration,
+        expiresAt: new Date(Date.now() + muteDuration)
+      });
+      
+      await moderationAction.save();
+      
+      // Emitir evento vía Socket.IO
+      if (global.io) {
+        global.io.emit(`user:${userId}:muted`, {
+          chatId,
+          mutedUntil: new Date(Date.now() + muteDuration),
+          moderator: req.user.username
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Usuario silenciado correctamente',
+        data: {
+          mutedUntil: new Date(Date.now() + muteDuration)
+        }
+      });
+    } catch (error) {
+      console.error('Error muting user:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al silenciar usuario'
+      });
+    }
+  }
+
+  // Quitar silencio a usuario
+  async unmuteUser(req, res) {
+    try {
+      const { chatId, userId } = req.params;
+      
+      // Verificar permisos
+      if (!['Admin', 'GameMaster'].includes(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para quitar silencio'
+        });
+      }
+      
+      const chatRoom = await ChatRoom.findById(chatId);
+      
+      if (!chatRoom) {
+        return res.status(404).json({
+          success: false,
+          message: 'Chat no encontrado'
+        });
+      }
+      
+      await chatRoom.unmuteParticipant(userId);
+      
+      // Emitir evento vía Socket.IO
+      if (global.io) {
+        global.io.emit(`user:${userId}:unmuted`, {
+          chatId,
+          moderator: req.user.username
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Silencio removido correctamente'
+      });
+    } catch (error) {
+      console.error('Error unmuting user:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al quitar silencio'
+      });
+    }
+  }
+
+  // Banear usuario de un chat
+  async banUser(req, res) {
+    try {
+      const { chatId, userId } = req.params;
+      const { reason, duration } = req.body; // duración en horas
+      
+      // Verificar permisos
+      if (!['Admin', 'GameMaster'].includes(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para banear usuarios'
+        });
+      }
+      
+      const chatRoom = await ChatRoom.findById(chatId);
+      
+      if (!chatRoom) {
+        return res.status(404).json({
+          success: false,
+          message: 'Chat no encontrado'
+        });
+      }
+      
+      // Remover usuario del chat
+      await chatRoom.removeParticipant(userId);
+      
+      // Calcular duración del ban (por defecto 24 horas)
+      const banDuration = duration ? duration * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+      
+      // Crear acción de moderación
+      const moderationAction = new ModerationAction({
+        actionType: 'ban',
+        targetUser: userId,
+        moderator: req.user._id,
+        reason: reason || 'Baneado del chat',
+        chatRoom: chatId,
+        duration: banDuration,
+        expiresAt: new Date(Date.now() + banDuration)
+      });
+      
+      await moderationAction.save();
+      
+      // Emitir evento vía Socket.IO
+      if (global.io) {
+        global.io.emit(`user:${userId}:banned`, {
+          chatId,
+          reason: reason || 'Baneado del chat',
+          bannedUntil: new Date(Date.now() + banDuration),
+          moderator: req.user.username
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Usuario baneado correctamente',
+        data: {
+          bannedUntil: new Date(Date.now() + banDuration)
+        }
+      });
+    } catch (error) {
+      console.error('Error banning user:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al banear usuario'
+      });
+    }
+  }
+
+  // Quitar ban a usuario
+  async unbanUser(req, res) {
+    try {
+      const { chatId, userId } = req.params;
+      
+      // Verificar permisos
+      if (!['Admin', 'GameMaster'].includes(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para quitar bans'
+        });
+      }
+      
+      // Eliminar acciones de moderación activas
+      await ModerationAction.updateMany(
+        {
+          targetUser: userId,
+          chatRoom: chatId,
+          actionType: 'ban',
+          isActive: true
+        },
+        {
+          isActive: false,
+          resolvedAt: new Date(),
+          resolvedBy: req.user._id
+        }
+      );
+      
+      // Emitir evento vía Socket.IO
+      if (global.io) {
+        global.io.emit(`user:${userId}:unbanned`, {
+          chatId,
+          moderator: req.user.username
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Ban removido correctamente'
+      });
+    } catch (error) {
+      console.error('Error unbanning user:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al quitar ban'
+      });
+    }
+  }
 }
 
 module.exports = new ChatController();

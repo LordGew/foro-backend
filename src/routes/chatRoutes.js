@@ -20,6 +20,12 @@ router.delete('/messages/:messageId', chatController.deleteMessage);
 router.post('/messages/:messageId/report', chatController.reportMessage);
 router.post('/chats/:chatId/read', chatController.markAsRead);
 
+// Rutas de moderación
+router.post('/chats/:chatId/mute/:userId', chatController.muteUser);
+router.post('/chats/:chatId/unmute/:userId', chatController.unmuteUser);
+router.post('/chats/:chatId/ban/:userId', chatController.banUser);
+router.post('/chats/:chatId/unban/:userId', chatController.unbanUser);
+
 // Servir archivos estáticos de chat
 router.use('/uploads/chat', express.static(path.join(__dirname, '../uploads/chat')));
 
