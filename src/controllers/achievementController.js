@@ -496,16 +496,4 @@ function calculateProgress(user, achievement) {
   return Math.min(100, Math.round((current / value) * 100));
 }
 
-module.exports = {
-  getAllAchievements,
-  getAchievementsByCategory,
-  getUserAchievementsWithProgress,
-  getMyAchievements,
-  checkAchievement,
-  checkAllAchievements,
-  createAchievement,
-  updateAchievement,
-  deleteAchievement,
-  resetUserAchievements,
-  runSeedAchievements
-};
+// Las funciones ya están exportadas con exports.functionName arriba
