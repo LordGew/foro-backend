@@ -148,58 +148,11 @@ const createPost = async (req, res) => {
     await checkAndGrantAchievements(req.user.userId, 'post_created');
 
     res.status(201).json(post);
-    } else {
-      // Si no, buscar por slug
-      post = await Post.findOne({ slug: param });
-    }
-
-    if (!post) {
-      return res.status(404).json({ message: 'Post no encontrado' });
-    }
-
-    // Poblar todos los campos en una sola llamada a populate con un array
-    await post.populate([
-      { path: 'author', select: 'username profileImage postCount replyCount xp _id' },
-      { path: 'category', select: 'name slug' },
-      {
-        path: 'replies',
-        populate: [
-          { path: 'author', select: 'username profileImage _id' },
-          { path: 'likes', select: 'username' },
-          { path: 'dislikes', select: 'username' },
-          { path: 'parentReply', populate: { path: 'author', select: 'username profileImage _id' } }
-        ],
-        options: { sort: { createdAt: 1 } }
-      },
-      { path: 'likes', select: 'username profileImage' },
-      { path: 'dislikes', select: 'username profileImage' }
-    ]);
-
-    // FIX: Verificar acceso a post VIP
-    const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
-    console.log(' Verificación acceso VIP (post individual):', {
-      userId: req.user?.userId,
-      role: req.user?.role,
-      vip: req.user?.vip,
-      categoryName: post.category?.name,
-      authorized: authorized
-    });
-    if (post.category.name === 'VIP' && !authorized) {
-      console.log(' ACCESO DENEGADO - Usuario no autorizado para contenido VIP');
-      return res.status(403).json({ message: 'Acceso denegado a contenido VIP' });
-    }
-    console.log(' Acceso VIP concedido');
-
-    res.json(post);
   } catch (err) {
-    console.error('Error al obtener post por param:', err);
-    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
-  }
-};
-
-const deletePost = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
+    console.error('Error al crear post:', err);
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(err => err.message);
+      return res.status(400).json({ message: 'Error de validación', errors: messages });
     if (!post) return res.status(404).json({ message: 'Post no encontrado' });
     
     const targetUser = await User.findById(post.author);
