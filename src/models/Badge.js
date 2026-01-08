@@ -23,7 +23,7 @@ const badgeSchema = new mongoose.Schema({
   },
   rarity: {
     type: String,
-    enum: ['common', 'rare', 'epic', 'legendary'],
+    enum: ['common', 'uncommon', 'rare', 'epic', 'legendary'],
     default: 'common'
   },
   price: {
