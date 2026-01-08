@@ -383,7 +383,8 @@ const getUserProfile = async (req, res) => {
       .populate('activeRewards.emoji')
       .populate('activeRewards.title')
       .populate('activeRewards.theme')
-      .populate('activeRewards.frame');
+      .populate('activeRewards.frame')
+      .populate('badges');
     
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
@@ -411,7 +412,8 @@ const getUserById = async (req, res) => {
       .populate('activeRewards.emoji')
       .populate('activeRewards.title')
       .populate('activeRewards.theme')
-      .populate('activeRewards.frame');
+      .populate('activeRewards.frame')
+      .populate('badges');
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json(user);
