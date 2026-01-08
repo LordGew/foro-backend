@@ -303,10 +303,17 @@ UserSchema.virtual('xpInCurrentLevel').get(function() {
 UserSchema.options.toJSON = {
   transform: function(doc, ret) {
     if (ret.profileImage) {
-      ret.profileImage = `${baseUrl}/uploads/profiles/${ret.profileImage}`;
+      // Solo agregar baseUrl si NO es una URL completa (http/https)
+      if (!ret.profileImage.startsWith('http://') && !ret.profileImage.startsWith('https://')) {
+        ret.profileImage = `${baseUrl}/uploads/profiles/${ret.profileImage}`;
+      }
+      // Si ya es URL completa (Cloudinary), dejarla como está
     }
     if (ret.bannerImage) {
-      ret.bannerImage = `${baseUrl}/uploads/banners/${ret.bannerImage}`;
+      // Solo agregar baseUrl si NO es una URL completa
+      if (!ret.bannerImage.startsWith('http://') && !ret.bannerImage.startsWith('https://')) {
+        ret.bannerImage = `${baseUrl}/uploads/banners/${ret.bannerImage}`;
+      }
     }
     return ret;
   }
