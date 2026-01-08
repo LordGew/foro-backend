@@ -328,6 +328,46 @@ app.post('/api/admin/seed-badges', async (req, res) => {
   }
 });
 
+// Endpoint temporal para actualizar puntos de usuario para testing (ELIMINAR DESPUÉS DE USAR)
+app.post('/api/admin/update-user-points', async (req, res) => {
+  try {
+    const { email, achievementPoints, referralPoints, xp } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email es requerido' });
+    }
+    
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+    
+    // Actualizar puntos
+    if (achievementPoints !== undefined) user.achievementPoints = achievementPoints;
+    if (referralPoints !== undefined) user.referralPoints = referralPoints;
+    if (xp !== undefined) user.xp = xp;
+    
+    await user.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Puntos actualizados exitosamente',
+      user: {
+        username: user.username,
+        email: user.email,
+        achievementPoints: user.achievementPoints,
+        referralPoints: user.referralPoints,
+        xp: user.xp,
+        level: Math.floor(Math.sqrt(user.xp / 10))
+      }
+    });
+  } catch (error) {
+    console.error('Error al actualizar puntos:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Endpoint temporal para migrar roles (ELIMINAR DESPUÉS DE USAR)
 app.post('/api/admin/migrate-roles', async (req, res) => {
   try {
