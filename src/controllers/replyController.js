@@ -129,13 +129,14 @@ const createReply = async (req, res) => {
       .populate('dislikes', 'username profileImage')
       .populate('parentReply', 'content author');
 
-    // Actualizar progreso de misiones diarias
-    const { updateMissionProgress } = require('./missionController');
-    await updateMissionProgress(req.user.userId, 'create_reply', 1);
-
     // Verificar logros generales (replies, XP, etc.)
     await checkAndGrantAchievements(req.user.userId, 'reply_created');
-      
+
+    // Actualizar progreso de misiones diarias
+    const missionController = require('./missionController');
+    await missionController.updateMissionProgress(req.user.userId, 'create_reply', 1);
+    await missionController.updateMissionProgress(req.user.userId, 'earn_xp', 5);
+
     res.status(201).json(populatedReply);
   } catch (err) {
     console.error('Error al crear respuesta:', err);

@@ -177,7 +177,12 @@ const login = async (req, res) => {
     }
     
     user.isOnline = true;
+    user.lastLogin = new Date();
     await user.save();
+
+    // Actualizar progreso de misión de login diario
+    const missionController = require('./missionController');
+    await missionController.updateMissionProgress(user._id, 'daily_login', 1);
 
     const token = jwt.sign({ 
       userId: user._id.toString(), 
