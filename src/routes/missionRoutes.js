@@ -8,5 +8,6 @@ router.get('/', authMiddleware, missionController.getTodayMissions);
 router.get('/today', authMiddleware, missionController.getTodayMissions);
 router.post('/:missionId/claim', authMiddleware, missionController.claimMissionReward);
 router.get('/stats', authMiddleware, missionController.getMissionStats);
+router.post('/validate-claim', authMiddleware, missionController.validateAndClaimRewards);
 
 module.exports = router;

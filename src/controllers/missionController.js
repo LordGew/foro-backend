@@ -412,3 +412,70 @@ exports.getMissionStats = async (req, res) => {
     res.status(500).json({ message: 'Error al cargar estadísticas', error: err.message });
   }
 };
+
+// Validar y reclamar recompensas manualmente
+exports.validateAndClaimRewards = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const missions = await DailyMission.find({ date: today });
+    let claimedCount = 0;
+    let totalPoints = 0;
+    let totalXp = 0;
+
+    for (const mission of missions) {
+      const progress = await UserMissionProgress.findOne({
+        userId,
+        missionId: mission._id,
+        date: today
+      });
+
+      if (progress && 
+          progress.completed && 
+          !progress.claimed &&
+          progress.progress >= mission.requirement.value) {
+        
+        // Reclamar recompensa
+        const user = await User.findById(userId);
+        user.points = (user.points || 0) + mission.reward.points;
+        user.xp = (user.xp || 0) + mission.reward.xp;
+        await user.save();
+
+        progress.claimed = true;
+        progress.claimedAt = new Date();
+        await progress.save();
+
+        claimedCount++;
+        totalPoints += mission.reward.points;
+        totalXp += mission.reward.xp;
+
+        console.log(`✅ Recompensa reclamada manualmente: ${mission.title}`);
+      }
+    }
+
+    if (claimedCount === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No hay recompensas disponibles para reclamar' 
+      });
+    }
+
+    res.json({
+      success: true,
+      claimedCount,
+      totalPoints,
+      totalXp,
+      message: `¡${claimedCount} recompensas reclamadas con éxito!`
+    });
+
+  } catch (err) {
+    console.error('Error en validación manual:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error interno del servidor',
+      error: err.message 
+    });
+  }
+};
