@@ -297,7 +297,12 @@ app.use('/api/achievements', achievementRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/badges', badgeRoutes);
-app.use('/api/missions', missionRoutes);
+app.use('/api/missions', (req, res, next) => {
+  console.log(`🌍 PETICIÓN A MISSIONS: ${req.method} ${req.originalUrl}`);
+  console.log('📋 Headers:', req.headers);
+  console.log('📋 Body:', req.body);
+  next();
+}, missionRoutes);
 app.use('/api', healthRoutes);
 
 // Endpoint temporal para ejecutar seed de juegos (ELIMINAR DESPUÉS DE USAR)
