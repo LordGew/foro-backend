@@ -179,6 +179,8 @@ exports.updateMissionProgress = async (userId, missionType, value = 1, categoryI
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    console.log(`🎮 Actualizando misión - Usuario: ${userId}, Tipo: ${missionType}, Valor: ${value}`);
+    
     // Buscar misiones del tipo correspondiente
     const query = { date: today, type: missionType };
     if (categoryId) {
@@ -186,6 +188,7 @@ exports.updateMissionProgress = async (userId, missionType, value = 1, categoryI
     }
     
     const missions = await DailyMission.find(query);
+    console.log(`📋 Misiones encontradas para ${missionType}: ${missions.length}`);
     
     for (const mission of missions) {
       // Buscar o crear progreso
@@ -196,6 +199,7 @@ exports.updateMissionProgress = async (userId, missionType, value = 1, categoryI
       });
       
       if (!progress) {
+        console.log(`🆓 Creando nuevo progreso para misión: ${mission.title}`);
         progress = new UserMissionProgress({
           userId,
           missionId: mission._id,
@@ -206,10 +210,13 @@ exports.updateMissionProgress = async (userId, missionType, value = 1, categoryI
       
       // Actualizar progreso
       if (!progress.completed) {
+        const oldProgress = progress.progress;
         progress.progress = Math.min(progress.progress + value, mission.requirement.value);
+        console.log(`📈 Progreso actualizado: ${oldProgress} → ${progress.progress}/${mission.requirement.value}`);
         
         // Verificar si se completó
         if (progress.progress >= mission.requirement.value) {
+          console.log(`🎉 ¡Misión completada! ${mission.title}`);
           progress.completed = true;
           progress.completedAt = new Date();
           
@@ -222,9 +229,13 @@ exports.updateMissionProgress = async (userId, missionType, value = 1, categoryI
             link: '/daily-missions',
             read: false
           });
+          console.log(`📬 Notificación creada para misión completada`);
         }
         
         await progress.save();
+        console.log(`💾 Progreso guardado para misión: ${mission.title}`);
+      } else {
+        console.log(`⚠️ Misión ya completada: ${mission.title}`);
       }
     }
   } catch (err) {

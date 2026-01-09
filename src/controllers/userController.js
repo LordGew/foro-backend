@@ -182,7 +182,9 @@ const login = async (req, res) => {
 
     // Actualizar progreso de misión de login diario
     const missionController = require('./missionController');
+    console.log(`🎯 Actualizando misión de login para usuario: ${user.username} (${user._id})`);
     await missionController.updateMissionProgress(user._id, 'daily_login', 1);
+    console.log(`✅ Progreso de misión de login actualizado para: ${user.username}`);
 
     const token = jwt.sign({ 
       userId: user._id.toString(), 
