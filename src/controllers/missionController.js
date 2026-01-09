@@ -179,7 +179,8 @@ exports.updateMissionProgress = async (userId, missionType, value = 1, categoryI
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    console.log(`🎮 Actualizando misión - Usuario: ${userId}, Tipo: ${missionType}, Valor: ${value}`);
+    console.log(`🎮 ACTUALIZANDO MISIÓN - Usuario: ${userId}, Tipo: ${missionType}, Valor: ${value}`);
+    console.log(`📅 Fecha actual: ${today.toISOString()}`);
     
     // Buscar misiones del tipo correspondiente
     const query = { date: today, type: missionType };
@@ -189,6 +190,14 @@ exports.updateMissionProgress = async (userId, missionType, value = 1, categoryI
     
     const missions = await DailyMission.find(query);
     console.log(`📋 Misiones encontradas para ${missionType}: ${missions.length}`);
+    
+    if (missions.length === 0) {
+      console.log(`❌ NO HAY MISIONES del tipo ${missionType} para hoy`);
+      // Listar todas las misiones de hoy para debug
+      const allMissions = await DailyMission.find({ date: today });
+      console.log(`📋 Todas las misiones de hoy: ${allMissions.length}`);
+      allMissions.forEach(m => console.log(`  - ${m.title} (${m.type})`));
+    }
     
     for (const mission of missions) {
       // Buscar o crear progreso
@@ -496,6 +505,30 @@ exports.validateAndClaimRewards = async (req, res) => {
 
   } catch (err) {
     console.error('Error en validación manual:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error interno del servidor',
+      error: err.message 
+    });
+  }
+};
+
+// Endpoint para forzar actualización de progreso de login
+exports.forceLoginProgress = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    console.log(`🔥 FORZANDO ACTUALIZACIÓN DE LOGIN - Usuario: ${userId}`);
+    
+    // Forzar actualización de misión de login
+    await exports.updateMissionProgress(userId, 'daily_login', 1);
+    
+    res.json({
+      success: true,
+      message: 'Progreso de login forzado exitosamente',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Error forzando login:', err);
     res.status(500).json({ 
       success: false, 
       message: 'Error interno del servidor',
