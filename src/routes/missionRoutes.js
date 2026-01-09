@@ -8,6 +8,7 @@ router.get('/', authMiddleware, missionController.getTodayMissions);
 router.get('/today', authMiddleware, missionController.getTodayMissions);
 router.post('/:missionId/claim', authMiddleware, missionController.claimMissionReward);
 router.get('/stats', authMiddleware, missionController.getMissionStats);
+router.get('/test', authMiddleware, missionController.testEndpoint);
 router.post('/validate-claim', (req, res, next) => {
   console.log('🚀 ENDPOINT VALIDATE-CLAIM RECIBIDO');
   console.log('📋 Headers:', req.headers);

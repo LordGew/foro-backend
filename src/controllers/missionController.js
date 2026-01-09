@@ -416,12 +416,14 @@ exports.getMissionStats = async (req, res) => {
 // Validar y reclamar recompensas manualmente
 exports.validateAndClaimRewards = async (req, res) => {
   try {
+    console.log('🚀 validateAndClaimRewards EJECUTÁNDOSE');
+    
     const userId = req.user.userId;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     console.log(`🔍 VALIDACIÓN MANUAL - Usuario: ${userId}, Fecha: ${today.toISOString()}`);
-
+    
     const missions = await DailyMission.find({ date: today });
     console.log(`📋 Misiones del día encontradas: ${missions.length}`);
     
@@ -500,4 +502,15 @@ exports.validateAndClaimRewards = async (req, res) => {
       error: err.message 
     });
   }
+};
+
+// Endpoint temporal de prueba
+exports.testEndpoint = async (req, res) => {
+  console.log('🧪 TEST ENDPOINT RECIBIDO');
+  res.json({
+    success: true,
+    message: 'Endpoint de prueba funciona',
+    timestamp: new Date().toISOString(),
+    user: req.user
+  });
 };
