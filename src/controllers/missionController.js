@@ -425,6 +425,14 @@ exports.validateAndClaimRewards = async (req, res) => {
     const missions = await DailyMission.find({ date: today });
     console.log(`📋 Misiones del día encontradas: ${missions.length}`);
     
+    if (missions.length === 0) {
+      console.log(`❌ ERROR CRÍTICO: No hay misiones generadas para hoy`);
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No hay misiones generadas para hoy' 
+      });
+    }
+    
     let claimedCount = 0;
     let totalPoints = 0;
     let totalXp = 0;
