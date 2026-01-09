@@ -420,17 +420,30 @@ exports.validateAndClaimRewards = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    console.log(`🔍 VALIDACIÓN MANUAL - Usuario: ${userId}, Fecha: ${today.toISOString()}`);
+
     const missions = await DailyMission.find({ date: today });
+    console.log(`📋 Misiones del día encontradas: ${missions.length}`);
+    
     let claimedCount = 0;
     let totalPoints = 0;
     let totalXp = 0;
 
     for (const mission of missions) {
+      console.log(`🎯 Analizando misión: ${mission.title} (${mission._id})`);
+      
       const progress = await UserMissionProgress.findOne({
         userId,
         missionId: mission._id,
         date: today
       });
+
+      console.log(`📊 Progreso encontrado:`, progress ? {
+        completed: progress.completed,
+        claimed: progress.claimed,
+        progress: progress.progress,
+        required: mission.requirement.value
+      } : '❌ No existe progreso');
 
       if (progress && 
           progress.completed && 
@@ -456,6 +469,7 @@ exports.validateAndClaimRewards = async (req, res) => {
     }
 
     if (claimedCount === 0) {
+      console.log(`⚠️ No se encontraron recompensas para reclamar - Usuario: ${userId}`);
       return res.status(400).json({ 
         success: false, 
         message: 'No hay recompensas disponibles para reclamar' 
