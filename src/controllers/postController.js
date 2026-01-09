@@ -143,85 +143,19 @@ const createPost = async (req, res) => {
     // Verificar logros generales (posts, XP, etc.)
     await checkAndGrantAchievements(req.user.userId, 'post_created');
 
+    // Actualizar progreso de misiones
+    const missionController = require('./missionController');
+    console.log(`🎯 Actualizando misión de crear post para usuario: ${req.user.userId}`);
+    await missionController.updateMissionProgress(req.user.userId, 'create_post', 1);
+    await missionController.updateMissionProgress(req.user.userId, 'earn_xp', 10);
+    console.log(`✅ Progreso de misiones actualizado para crear post`);
+
     res.status(201).json(post);
   } catch (err) {
     console.error('Error al crear post:', err);
     if (err.name === 'ValidationError') {
       const messages = Object.values(err.errors).map(err => err.message);
       return res.status(400).json({ message: 'Error de validación', errors: messages });
-    }
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'La imagen no debe superar los 5MB' });
-    }
-    if (err.message && err.message.includes('Solo se permiten imágenes')) {
-      return res.status(400).json({ message: err.message });
-    }
-    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
-  }
-};
-
-// Nueva función para obtener post por slug
-const getPostByParam = async (req, res) => {
-  const param = req.params.param;
-  console.log('Procesando ruta por param:', param); // Depuración
-
-  try {
-    let post;
-    if (mongoose.Types.ObjectId.isValid(param)) {
-      // Si es un ID válido, buscar por ID
-      post = await Post.findById(param);
-    } else {
-      // Si no, buscar por slug
-      post = await Post.findOne({ slug: param });
-    }
-
-    if (!post) {
-      return res.status(404).json({ message: 'Post no encontrado' });
-    }
-
-    // Poblar todos los campos en una sola llamada a populate con un array
-    await post.populate([
-      { path: 'author', select: 'username profileImage postCount replyCount xp _id' },
-      { path: 'category', select: 'name slug' },
-      {
-        path: 'replies',
-        populate: [
-          { path: 'author', select: 'username profileImage _id' },
-          { path: 'likes', select: 'username' },
-          { path: 'dislikes', select: 'username' },
-          { path: 'parentReply', populate: { path: 'author', select: 'username profileImage _id' } }
-        ],
-        options: { sort: { createdAt: 1 } }
-      },
-      { path: 'likes', select: 'username profileImage' },
-      { path: 'dislikes', select: 'username profileImage' }
-    ]);
-
-    // FIX: Verificar acceso a post VIP
-    const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
-    console.log(' Verificación acceso VIP (post individual):', {
-      userId: req.user?.userId,
-      role: req.user?.role,
-      vip: req.user?.vip,
-      categoryName: post.category?.name,
-      authorized: authorized
-    });
-    if (post.category.name === 'VIP' && !authorized) {
-      console.log(' ACCESO DENEGADO - Usuario no autorizado para contenido VIP');
-      return res.status(403).json({ message: 'Acceso denegado a contenido VIP' });
-    }
-    console.log(' Acceso VIP concedido');
-
-    res.json(post);
-  } catch (err) {
-    console.error('Error al obtener post por param:', err);
-    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
-  }
-};
-
-const deletePost = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post no encontrado' });
     
     const targetUser = await User.findById(post.author);
