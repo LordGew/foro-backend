@@ -540,13 +540,11 @@ module.exports = {
   createPost, 
   getPosts, 
   updatePost, 
-  deletePost,
+  deletePost: deletePostByAdmin,  
   likePost,
   dislikePost,
   addPostXp,
   getPostsCount,
   deletePostByAdmin,
-  getPostByParam,
-  removeDislikeXp,
   getPostsByCategoryParam
 };
