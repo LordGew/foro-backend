@@ -466,18 +466,18 @@ const deletePostByAdmin = async (req, res) => {
 };
 const getPostById = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { param } = req.params;  
     
     let post;
-    if (mongoose.Types.ObjectId.isValid(id)) {
+    if (mongoose.Types.ObjectId.isValid(param)) {
       // Buscar por ID
-      post = await Post.findById(id)
+      post = await Post.findById(param)
         .populate('author', 'username profileImage _id')
         .populate('category', 'name')
         .populate('replies', 'content author likes dislikes createdAt');
     } else {
       // Buscar por slug
-      post = await Post.findOne({ slug: id })
+      post = await Post.findOne({ slug: param })
         .populate('author', 'username profileImage _id')
         .populate('category', 'name')
         .populate('replies', 'content author likes dislikes createdAt');
