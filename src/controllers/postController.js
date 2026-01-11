@@ -464,6 +464,45 @@ const deletePostByAdmin = async (req, res) => {
     });
   }
 };
+const getPostById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    let post;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      // Buscar por ID
+      post = await Post.findById(id)
+        .populate('author', 'username profileImage _id')
+        .populate('category', 'name')
+        .populate('replies', 'content author likes dislikes createdAt');
+    } else {
+      // Buscar por slug
+      post = await Post.findOne({ slug: id })
+        .populate('author', 'username profileImage _id')
+        .populate('category', 'name')
+        .populate('replies', 'content author likes dislikes createdAt');
+    }
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post no encontrado' });
+    }
+
+    // Verificar acceso VIP
+    const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
+    if (post.category && post.category.name === 'VIP' && !authorized) {
+      return res.status(403).json({ message: 'Acceso denegado a contenido VIP' });
+    }
+
+    res.json(post);
+  } catch (err) {
+    console.error('Error al obtener post por ID/slug:', err);
+    res.status(500).json({ 
+      message: 'Error interno del servidor',
+      error: err.message 
+    });
+  }
+};
+
 const getPostsByCategoryParam = async (req, res) => {
   try {
     const param = req.params.id || req.params.param;
@@ -539,6 +578,7 @@ const getPostsByCategoryParam = async (req, res) => {
 module.exports = { 
   createPost, 
   getPosts, 
+  getPostById,
   updatePost, 
   deletePost: deletePostByAdmin,  
   likePost,
