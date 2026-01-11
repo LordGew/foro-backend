@@ -13,8 +13,7 @@ const {
   dislikePost,
   getPostsByCategoryParam,
   getPostsCount,
-  deletePostByAdmin,
-  getPostByParam
+  deletePostByAdmin
 } = require('../controllers/postController');
 
 // Crear post (upload primero, luego auth)
@@ -30,7 +29,7 @@ router.get('/count', getPostsCount);
 router.get('/category/:id', getPostsByCategoryParam);
 
 // Obtener post por ID o slug
-router.get('/:param', getPostByParam);
+router.get('/:param', getPostById);
 
 // Actualizar post
 router.put('/:id', uploadSingleImage, authMiddleware, updatePost);
