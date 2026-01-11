@@ -156,43 +156,11 @@ const createPost = async (req, res) => {
     if (err.name === 'ValidationError') {
       const messages = Object.values(err.errors).map(err => err.message);
       return res.status(400).json({ message: 'Error de validación', errors: messages });
-    if (!post) return res.status(404).json({ message: 'Post no encontrado' });
-    
-    const targetUser = await User.findById(post.author);
-    
-    // Verificar que el usuario sea el autor o un moderador autorizado
-    if (post.author.toString() !== req.user.userId) {
-      if (req.user.role !== 'Admin') {  // Admins can delete anything
-        if (!canModerate(req.user.role, targetUser.role)) {
-          return res.status(403).json({ message: 'No autorizado' });
-        }
-      }
     }
-    
-    // Eliminar imagen de Cloudinary si existe
-    if (post.images && post.images.length > 0) {
-      const publicId = getPublicIdFromUrl(post.images[0]);
-      if (publicId) {
-        await cloudinary.uploader.destroy(publicId);
-        console.log(`Imagen eliminada de Cloudinary: ${publicId}`);
-      }
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'La imagen no debe superar los 5MB' });
     }
-    
-    // Disminuir contador de posts (FIX: Atomic $inc, clamp implícito por schema min:0)
-    await User.updateOne(
-      { _id: post.author },
-      { $inc: { postCount: -1 } },  // Decrementa 1, no baja de 0 por schema
-      { runValidators: true }
-    );
-    
-    await post.deleteOne();
-    res.json({ message: 'Post eliminado' });
-  } catch (err) {
-    console.error('Error al eliminar post:', err);
-    res.status(500).json({ 
-      message: 'Error interno del servidor',
-      error: err.message 
-    });
+    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
   }
 };
 
