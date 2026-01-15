@@ -124,10 +124,26 @@ const createReply = async (req, res) => {
     }
     
     const populatedReply = await Reply.findById(reply._id)
-      .populate('author', 'username profileImage replyCount')
-      .populate('likes', 'username profileImage')
-      .populate('dislikes', 'username profileImage')
-      .populate('parentReply', 'content author');
+      .populate([
+        {
+          path: 'author',
+          select: 'username profileImage replyCount _id role activeRewards',
+          transform: (doc) => {
+            if (doc && doc.profileImage && !doc.profileImage.startsWith('http')) {
+              doc.profileImage = `https://res.cloudinary.com/duqywugjo/image/upload/v1759376255/profiles/${doc.profileImage}`;
+            }
+            return doc;
+          }
+        },
+        { path: 'likes', select: 'username profileImage' },
+        { path: 'dislikes', select: 'username profileImage' },
+        {
+          path: 'parentReply',
+          populate: [
+            { path: 'author', select: 'username profileImage _id' }
+          ]
+        }
+      ]);
 
     // Verificar logros generales (replies, XP, etc.)
     await checkAndGrantAchievements(req.user.userId, 'reply_created');
@@ -187,10 +203,26 @@ const toggleLike = async (req, res) => {
     await reply.save();
     
     const updatedReply = await Reply.findById(id)
-      .populate('author', 'username profileImage replyCount')
-      .populate('likes', 'username profileImage')
-      .populate('dislikes', 'username profileImage')
-      .populate('parentReply', 'content author');
+      .populate([
+        {
+          path: 'author',
+          select: 'username profileImage replyCount _id role activeRewards',
+          transform: (doc) => {
+            if (doc && doc.profileImage && !doc.profileImage.startsWith('http')) {
+              doc.profileImage = `https://res.cloudinary.com/duqywugjo/image/upload/v1759376255/profiles/${doc.profileImage}`;
+            }
+            return doc;
+          }
+        },
+        { path: 'likes', select: 'username profileImage' },
+        { path: 'dislikes', select: 'username profileImage' },
+        {
+          path: 'parentReply',
+          populate: [
+            { path: 'author', select: 'username profileImage _id' }
+          ]
+        }
+      ]);
 
     res.json(updatedReply);
   } catch (err) {
@@ -240,10 +272,26 @@ const toggleDislike = async (req, res) => {
     await reply.save();
     
     const updatedReply = await Reply.findById(id)
-      .populate('author', 'username profileImage replyCount')
-      .populate('likes', 'username profileImage')
-      .populate('dislikes', 'username profileImage')
-      .populate('parentReply', 'content author');
+      .populate([
+        {
+          path: 'author',
+          select: 'username profileImage replyCount _id role activeRewards',
+          transform: (doc) => {
+            if (doc && doc.profileImage && !doc.profileImage.startsWith('http')) {
+              doc.profileImage = `https://res.cloudinary.com/duqywugjo/image/upload/v1759376255/profiles/${doc.profileImage}`;
+            }
+            return doc;
+          }
+        },
+        { path: 'likes', select: 'username profileImage' },
+        { path: 'dislikes', select: 'username profileImage' },
+        {
+          path: 'parentReply',
+          populate: [
+            { path: 'author', select: 'username profileImage _id' }
+          ]
+        }
+      ]);
 
     res.json(updatedReply);
   } catch (err) {
@@ -286,10 +334,26 @@ const getReplies = async (req, res) => {
     }
     
     const replies = await Reply.find({ post: postId })
-      .populate('author', 'username profileImage replyCount')
-      .populate('likes', 'username profileImage')
-      .populate('dislikes', 'username profileImage')
-      .populate('parentReply', 'content author')
+      .populate([
+        {
+          path: 'author',
+          select: 'username profileImage replyCount _id role activeRewards',
+          transform: (doc) => {
+            if (doc && doc.profileImage && !doc.profileImage.startsWith('http')) {
+              doc.profileImage = `https://res.cloudinary.com/duqywugjo/image/upload/v1759376255/profiles/${doc.profileImage}`;
+            }
+            return doc;
+          }
+        },
+        { path: 'likes', select: 'username profileImage' },
+        { path: 'dislikes', select: 'username profileImage' },
+        {
+          path: 'parentReply',
+          populate: [
+            { path: 'author', select: 'username profileImage _id' }
+          ]
+        }
+      ])
       .sort({ createdAt: -1 });
       
     res.json(replies);
