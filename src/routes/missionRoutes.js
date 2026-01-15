@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// Importar el controlador refactorado
-const missionController = require('../controllers/missionController_refactored');
+// Importar el controlador
+const missionController = require('../controllers/missionController');
 
 // Middleware para logging de requests
 router.use((req, res, next) => {
