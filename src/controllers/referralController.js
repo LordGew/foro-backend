@@ -296,6 +296,9 @@ exports.equipReward = async (req, res) => {
     const { rewardId } = req.params;
     const userId = req.user.userId;
     
+    console.log('EquipReward - RewardId:', rewardId);
+    console.log('EquipReward - UserId:', userId);
+    
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
@@ -303,12 +306,16 @@ exports.equipReward = async (req, res) => {
     
     const reward = await RewardItem.findById(rewardId);
     if (!reward) {
+      console.log('Reward not found with ID:', rewardId);
       return res.status(404).json({ message: 'Recompensa no encontrada' });
     }
+    
+    console.log('Reward found:', reward);
     
     // Verificar que el usuario posee la recompensa
     const owned = user.ownedRewards.some(r => r.rewardId.toString() === rewardId);
     if (!owned) {
+      console.log('User does not own this reward. Owned rewards:', user.ownedRewards);
       return res.status(403).json({ message: 'No posees esta recompensa' });
     }
     
