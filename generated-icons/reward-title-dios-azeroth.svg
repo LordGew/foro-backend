@@ -1,0 +1,13 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/></filter>
+  </defs>
+  <circle cx="50" cy="50" r="45" fill="url(#grad)" />
+  <text x="50" y="50" dy="0.3em" text-anchor="middle" fill="#FFF" font-size="40">Dios de Azeroth</text>
+  <circle cx="50" cy="50" r="48" stroke="#FFD700" stroke-width="1" fill="none" filter="url(#glow)"/>
+</svg>

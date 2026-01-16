@@ -357,7 +357,7 @@ exports.unequipReward = async (req, res) => {
 // Admin: Crear recompensa
 exports.createReward = async (req, res) => {
   try {
-    const { name, description, type, cost, content, rarity, previewImage, metadata } = req.body;
+    const { name, description, type, cost, content, rarity, previewImage, metadata, slug, iconUrl, iconHtml } = req.body;
     
     if (!name || !description || !type || cost === undefined || !content) {
       return res.status(400).json({ message: 'Faltan campos requeridos' });
@@ -372,6 +372,9 @@ exports.createReward = async (req, res) => {
       rarity: rarity || 'common',
       previewImage,
       metadata,
+      slug,
+      iconUrl,
+      iconHtml,
       isActive: true
     });
     

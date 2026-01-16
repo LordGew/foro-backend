@@ -1,6 +1,14 @@
 const mongoose = require('mongoose');
+const slugify = require('slugify');
 
 const rewardItemSchema = new mongoose.Schema({
+  slug: {
+    type: String,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    index: true
+  },
   name: {
     type: String,
     required: true,
@@ -37,6 +45,13 @@ const rewardItemSchema = new mongoose.Schema({
   previewImage: {
     type: String
   },
+  iconUrl: {
+    type: String,
+    trim: true
+  },
+  iconHtml: {
+    type: String
+  },
   metadata: {
     type: mongoose.Schema.Types.Mixed
   },
@@ -47,5 +62,16 @@ const rewardItemSchema = new mongoose.Schema({
 });
 
 rewardItemSchema.index({ type: 1, isActive: 1 });
+
+rewardItemSchema.pre('validate', function handleSlug(next) {
+  if (!this.slug && this.name) {
+    this.slug = slugify(this.name, {
+      lower: true,
+      strict: true,
+      trim: true
+    });
+  }
+  next();
+});
 
 module.exports = mongoose.model('RewardItem', rewardItemSchema);

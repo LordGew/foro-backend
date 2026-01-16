@@ -1,0 +1,13 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/></filter>
+  </defs>
+  <circle cx="50" cy="50" r="45" fill="url(#grad)" />
+  <text x="50" y="50" dy="0.3em" text-anchor="middle" fill="#FFF" font-size="40">{"border":"8px solid transparent","borderRadius":"50%","backgroundImage":"linear-gradient(white, white), linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000)","backgroundOrigin":"border-box","backgroundClip":"padding-box, border-box","animation":"rotate 3s linear infinite","boxShadow":"0 0 30px rgba(255, 0, 255, 1), 0 0 50px rgba(0, 255, 255, 0.8)"}</text>
+  <circle cx="50" cy="50" r="48" stroke="#FFD700" stroke-width="1" fill="none" filter="url(#glow)"/>
+</svg>

@@ -1,152 +1,137 @@
-const RewardItem = require('../models/RewardItem');
-
-const defaultRewards = [
-  // EMOJIS
+const rewardsData = [
+  // Emojis
   {
+    slug: 'emoji-fuego',
     name: '🔥 Fuego',
     description: 'Emoji de fuego para mostrar tu pasión',
     type: 'emoji',
     cost: 50,
     content: '🔥',
-    rarity: 'common',
-    slug: 'fuego',
-    iconUrl: '/assets/icons/reward-fuego.svg'
+    rarity: 'common'
   },
   {
+    slug: 'emoji-espadas',
     name: '⚔️ Espadas Cruzadas',
     description: 'Muestra tu espíritu guerrero',
     type: 'emoji',
     cost: 75,
     content: '⚔️',
-    rarity: 'common',
-    slug: 'espadas-cruzadas',
-    iconUrl: '/assets/icons/reward-espadas-cruzadas.svg'
+    rarity: 'common'
   },
   {
+    slug: 'emoji-corona',
     name: '👑 Corona',
     description: 'Demuestra tu realeza',
     type: 'emoji',
     cost: 100,
     content: '👑',
-    rarity: 'rare',
-    slug: 'corona',
-    iconUrl: '/assets/icons/reward-corona.svg'
+    rarity: 'rare'
   },
   {
+    slug: 'emoji-diamante',
     name: '💎 Diamante',
     description: 'Brilla como un diamante',
     type: 'emoji',
     cost: 150,
     content: '💎',
-    rarity: 'rare',
-    slug: 'diamante',
-    iconUrl: '/assets/icons/reward-diamante.svg'
+    rarity: 'rare'
   },
   {
+    slug: 'emoji-estrella',
     name: '🌟 Estrella Brillante',
     description: 'Eres una estrella',
     type: 'emoji',
     cost: 200,
     content: '🌟',
-    rarity: 'epic',
-    slug: 'estrella-brillante',
-    iconUrl: '/assets/icons/reward-estrella-brillante.svg'
+    rarity: 'epic'
   },
   {
+    slug: 'emoji-dragon',
     name: '🐉 Dragón',
     description: 'El poder del dragón',
     type: 'emoji',
     cost: 300,
     content: '🐉',
-    rarity: 'epic',
-    slug: 'dragon',
-    iconUrl: '/assets/icons/reward-dragon.svg'
+    rarity: 'epic'
   },
   {
+    slug: 'emoji-trofeo',
     name: '🏆 Trofeo',
     description: 'Eres un campeón',
     type: 'emoji',
     cost: 500,
     content: '🏆',
-    rarity: 'legendary',
-    slug: 'trofeo',
-    iconUrl: '/assets/icons/reward-trofeo.svg'
+    rarity: 'legendary'
   },
 
-  // TÍTULOS
+  // Títulos
   {
+    slug: 'title-novato',
     name: 'Novato',
     description: 'Apenas comienzas tu aventura',
     type: 'title',
     cost: 0,
     content: 'Novato',
-    rarity: 'common',
-    slug: 'novato',
-    iconUrl: '/assets/icons/reward-novato.svg'
+    rarity: 'common'
   },
   {
+    slug: 'title-aventurero',
     name: 'Aventurero',
     description: 'Has explorado muchos caminos',
     type: 'title',
     cost: 100,
     content: 'Aventurero',
-    rarity: 'common',
-    slug: 'aventurero',
-    iconUrl: '/assets/icons/reward-aventurero.svg'
+    rarity: 'common'
   },
   {
+    slug: 'title-cazador-tesoros',
     name: 'Cazador de Tesoros',
     description: 'Siempre buscando recompensas',
     type: 'title',
     cost: 150,
     content: 'Cazador de Tesoros',
-    rarity: 'rare',
-    slug: 'cazador-de-tesoros',
-    iconUrl: '/assets/icons/reward-cazador-de-tesoros.svg'
+    rarity: 'rare'
   },
   {
+    slug: 'title-heroe-comunidad',
     name: 'Héroe de la Comunidad',
     description: 'Reconocido por todos',
     type: 'title',
     cost: 250,
     content: 'Héroe de la Comunidad',
-    rarity: 'rare',
-    slug: 'heroe-de-la-comunidad',
-    iconUrl: '/assets/icons/reward-heroe-de-la-comunidad.svg'
+    rarity: 'rare'
   },
   {
+    slug: 'title-leyenda-viviente',
     name: 'Leyenda Viviente',
     description: 'Tu nombre será recordado',
     type: 'title',
     cost: 400,
     content: 'Leyenda Viviente',
-    rarity: 'epic',
-    slug: 'leyenda-viviente',
-    iconUrl: '/assets/icons/reward-leyenda-viviente.svg'
+    rarity: 'epic'
   },
   {
+    slug: 'title-maestro-foro',
     name: 'Maestro del Foro',
     description: 'Dominas todas las artes del foro',
     type: 'title',
     cost: 600,
     content: 'Maestro del Foro',
-    rarity: 'epic',
-    slug: 'maestro-del-foro',
-    iconUrl: '/assets/icons/reward-maestro-del-foro.svg'
+    rarity: 'epic'
   },
   {
+    slug: 'title-dios-azeroth',
     name: 'Dios de Azeroth',
     description: 'Has alcanzado la divinidad',
     type: 'title',
     cost: 1000,
     content: 'Dios de Azeroth',
-    rarity: 'legendary',
-    slug: 'dios-de-azeroth',
-    iconUrl: '/assets/icons/reward-dios-de-azeroth.svg'
+    rarity: 'legendary'
   },
 
-  // TEMAS
+  // Temas
   {
+    slug: 'theme-oscuro',
     name: 'Tema Oscuro',
     description: 'Perfil con estilo oscuro elegante',
     type: 'theme',
@@ -156,11 +141,10 @@ const defaultRewards = [
       textColor: '#e0e0e0',
       accentColor: '#8E2DE2'
     }),
-    rarity: 'common',
-    slug: 'tema-oscuro',
-    iconUrl: '/assets/icons/reward-tema-oscuro.svg'
+    rarity: 'common'
   },
   {
+    slug: 'theme-fuego',
     name: 'Tema Fuego',
     description: 'Perfil con colores ardientes',
     type: 'theme',
@@ -170,11 +154,10 @@ const defaultRewards = [
       textColor: '#ffffff',
       accentColor: '#ff6b6b'
     }),
-    rarity: 'rare',
-    slug: 'tema-fuego',
-    iconUrl: '/assets/icons/reward-tema-fuego.svg'
+    rarity: 'rare'
   },
   {
+    slug: 'theme-oceano',
     name: 'Tema Océano',
     description: 'Perfil con colores del mar',
     type: 'theme',
@@ -184,11 +167,10 @@ const defaultRewards = [
       textColor: '#ffffff',
       accentColor: '#4facfe'
     }),
-    rarity: 'rare',
-    slug: 'tema-oceano',
-    iconUrl: '/assets/icons/reward-tema-oceano.svg'
+    rarity: 'rare'
   },
   {
+    slug: 'theme-naturaleza',
     name: 'Tema Naturaleza',
     description: 'Perfil con colores de la naturaleza',
     type: 'theme',
@@ -198,11 +180,10 @@ const defaultRewards = [
       textColor: '#ffffff',
       accentColor: '#06d6a0'
     }),
-    rarity: 'epic',
-    slug: 'tema-naturaleza',
-    iconUrl: '/assets/icons/reward-tema-naturaleza.svg'
+    rarity: 'epic'
   },
   {
+    slug: 'theme-arcoiris',
     name: 'Tema Arcoíris',
     description: 'Perfil con todos los colores',
     type: 'theme',
@@ -212,13 +193,12 @@ const defaultRewards = [
       textColor: '#ffffff',
       accentColor: '#ee5a6f'
     }),
-    rarity: 'legendary',
-    slug: 'tema-arcoiris',
-    iconUrl: '/assets/icons/reward-tema-arcoiris.svg'
+    rarity: 'legendary'
   },
 
-  // MARCOS
+  // Marcos
   {
+    slug: 'frame-basico',
     name: 'Marco Básico',
     description: 'Un marco simple para tu foto',
     type: 'frame',
@@ -228,11 +208,10 @@ const defaultRewards = [
       borderRadius: '50%',
       boxShadow: '0 0 10px rgba(142, 45, 226, 0.5)'
     }),
-    rarity: 'common',
-    slug: 'marco-basico',
-    iconUrl: '/assets/icons/reward-marco-basico.svg'
+    rarity: 'common'
   },
   {
+    slug: 'frame-oro',
     name: 'Marco de Oro',
     description: 'Marco dorado brillante',
     type: 'frame',
@@ -242,11 +221,10 @@ const defaultRewards = [
       borderRadius: '50%',
       boxShadow: '0 0 15px rgba(255, 215, 0, 0.7)'
     }),
-    rarity: 'rare',
-    slug: 'marco-de-oro',
-    iconUrl: '/assets/icons/reward-marco-de-oro.svg'
+    rarity: 'rare'
   },
   {
+    slug: 'frame-diamante',
     name: 'Marco de Diamante',
     description: 'Marco con brillo de diamante',
     type: 'frame',
@@ -256,11 +234,10 @@ const defaultRewards = [
       borderRadius: '50%',
       boxShadow: '0 0 20px rgba(185, 242, 255, 0.8), 0 0 30px rgba(185, 242, 255, 0.5)'
     }),
-    rarity: 'epic',
-    slug: 'marco-de-diamante',
-    iconUrl: '/assets/icons/reward-marco-de-diamante.svg'
+    rarity: 'epic'
   },
   {
+    slug: 'frame-arcoiris',
     name: 'Marco Arcoíris',
     description: 'Marco con efecto arcoíris animado',
     type: 'frame',
@@ -273,11 +250,10 @@ const defaultRewards = [
       backgroundClip: 'padding-box, border-box',
       boxShadow: '0 0 25px rgba(255, 105, 180, 0.8)'
     }),
-    rarity: 'epic',
-    slug: 'marco-arcoiris',
-    iconUrl: '/assets/icons/reward-marco-arcoiris.svg'
+    rarity: 'epic'
   },
   {
+    slug: 'frame-legendario',
     name: 'Marco Legendario',
     description: 'El marco más exclusivo y poderoso',
     type: 'frame',
@@ -291,25 +267,8 @@ const defaultRewards = [
       animation: 'rotate 3s linear infinite',
       boxShadow: '0 0 30px rgba(255, 0, 255, 1), 0 0 50px rgba(0, 255, 255, 0.8)'
     }),
-    rarity: 'legendary',
-    slug: 'marco-legendario',
-    iconUrl: '/assets/icons/reward-marco-legendario.svg'
+    rarity: 'legendary'
   }
 ];
 
-const seedRewards = async () => {
-  try {
-    const existingCount = await RewardItem.countDocuments();
-    
-    if (existingCount === 0) {
-      await RewardItem.insertMany(defaultRewards);
-      console.log(`✅ ${defaultRewards.length} recompensas creadas exitosamente`);
-    } else {
-      console.log(`ℹ️ Ya existen ${existingCount} recompensas en la base de datos`);
-    }
-  } catch (error) {
-    console.error('❌ Error al crear recompensas:', error);
-  }
-};
-
-module.exports = seedRewards;
+module.exports = rewardsData;

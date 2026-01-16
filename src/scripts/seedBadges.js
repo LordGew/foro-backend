@@ -12,7 +12,8 @@ const badges = [
     rarity: 'common',
     price: 50,
     requiredLevel: 1,
-    displayOrder: 1
+    displayOrder: 1,
+    slug: 'recluta'
   },
   {
     name: 'Soldado Raso',
@@ -22,7 +23,8 @@ const badges = [
     rarity: 'common',
     price: 75,
     requiredLevel: 3,
-    displayOrder: 2
+    displayOrder: 2,
+    slug: 'soldado-raso'
   },
   {
     name: 'Cabo',
@@ -32,7 +34,8 @@ const badges = [
     rarity: 'common',
     price: 100,
     requiredLevel: 5,
-    displayOrder: 3
+    displayOrder: 3,
+    slug: 'cabo'
   },
   {
     name: 'Sargento',
@@ -42,7 +45,8 @@ const badges = [
     rarity: 'common',
     price: 150,
     requiredLevel: 7,
-    displayOrder: 4
+    displayOrder: 4,
+    slug: 'sargento'
   },
   
   // MILITARES - Raro (200-400 pts)
@@ -54,7 +58,8 @@ const badges = [
     rarity: 'rare',
     price: 200,
     requiredLevel: 10,
-    displayOrder: 5
+    displayOrder: 5,
+    slug: 'teniente'
   },
   {
     name: 'Capitán',
@@ -64,7 +69,8 @@ const badges = [
     rarity: 'rare',
     price: 300,
     requiredLevel: 15,
-    displayOrder: 6
+    displayOrder: 6,
+    slug: 'capitan'
   },
   {
     name: 'Mayor',
@@ -74,7 +80,8 @@ const badges = [
     rarity: 'rare',
     price: 400,
     requiredLevel: 20,
-    displayOrder: 7
+    displayOrder: 7,
+    slug: 'mayor'
   },
   
   // MILITARES - Épico (500-800 pts)
@@ -86,7 +93,8 @@ const badges = [
     rarity: 'epic',
     price: 500,
     requiredLevel: 25,
-    displayOrder: 8
+    displayOrder: 8,
+    slug: 'coronel'
   },
   {
     name: 'General',
@@ -96,7 +104,8 @@ const badges = [
     rarity: 'epic',
     price: 700,
     requiredLevel: 30,
-    displayOrder: 9
+    displayOrder: 9,
+    slug: 'general'
   },
   {
     name: 'Mariscal de Campo',
@@ -106,7 +115,8 @@ const badges = [
     rarity: 'legendary',
     price: 1000,
     requiredLevel: 40,
-    displayOrder: 10
+    displayOrder: 10,
+    slug: 'mariscal-de-campo'
   },
   
   // EXPLORADORES - Común (50-150 pts)
@@ -118,7 +128,8 @@ const badges = [
     rarity: 'common',
     price: 50,
     requiredLevel: 1,
-    displayOrder: 11
+    displayOrder: 11,
+    slug: 'explorador-novato'
   },
   {
     name: 'Rastreador',
@@ -128,7 +139,8 @@ const badges = [
     rarity: 'common',
     price: 75,
     requiredLevel: 3,
-    displayOrder: 12
+    displayOrder: 12,
+    slug: 'rastreador'
   },
   {
     name: 'Campista',
@@ -138,7 +150,8 @@ const badges = [
     rarity: 'common',
     price: 100,
     requiredLevel: 5,
-    displayOrder: 13
+    displayOrder: 13,
+    slug: 'campista'
   },
   {
     name: 'Guía',
@@ -148,7 +161,8 @@ const badges = [
     rarity: 'common',
     price: 150,
     requiredLevel: 7,
-    displayOrder: 14
+    displayOrder: 14,
+    slug: 'guia'
   },
   
   // EXPLORADORES - Raro (200-400 pts)
@@ -160,7 +174,8 @@ const badges = [
     rarity: 'rare',
     price: 200,
     requiredLevel: 10,
-    displayOrder: 15
+    displayOrder: 15,
+    slug: 'montanista'
   },
   {
     name: 'Navegante',
@@ -170,7 +185,8 @@ const badges = [
     rarity: 'rare',
     price: 300,
     requiredLevel: 15,
-    displayOrder: 16
+    displayOrder: 16,
+    slug: 'navegante'
   },
   {
     name: 'Cartógrafo',
@@ -180,7 +196,8 @@ const badges = [
     rarity: 'rare',
     price: 400,
     requiredLevel: 20,
-    displayOrder: 17
+    displayOrder: 17,
+    slug: 'cartografo'
   },
   
   // EXPLORADORES - Épico (500-800 pts)
@@ -192,7 +209,8 @@ const badges = [
     rarity: 'epic',
     price: 500,
     requiredLevel: 25,
-    displayOrder: 18
+    displayOrder: 18,
+    slug: 'aventurero-legendario'
   },
   {
     name: 'Descubridor de Mundos',
@@ -202,7 +220,8 @@ const badges = [
     rarity: 'epic',
     price: 700,
     requiredLevel: 30,
-    displayOrder: 19
+    displayOrder: 19,
+    slug: 'descubridor-de-mundos'
   },
   {
     name: 'Maestro Explorador',
@@ -212,7 +231,8 @@ const badges = [
     rarity: 'legendary',
     price: 1000,
     requiredLevel: 40,
-    displayOrder: 20
+    displayOrder: 20,
+    slug: 'maestro-explorador'
   },
   
   // ESPECIALES - Variados
@@ -224,7 +244,8 @@ const badges = [
     rarity: 'rare',
     price: 250,
     requiredLevel: 10,
-    displayOrder: 21
+    displayOrder: 21,
+    slug: 'corazon-valiente'
   },
   {
     name: 'Mente Brillante',
@@ -234,7 +255,8 @@ const badges = [
     rarity: 'rare',
     price: 250,
     requiredLevel: 10,
-    displayOrder: 22
+    displayOrder: 22,
+    slug: 'mente-brillante'
   },
   {
     name: 'Espíritu Indomable',
@@ -244,7 +266,8 @@ const badges = [
     rarity: 'epic',
     price: 500,
     requiredLevel: 20,
-    displayOrder: 23
+    displayOrder: 23,
+    slug: 'espiritu-indomable'
   },
   {
     name: 'Guardián de la Comunidad',
@@ -254,7 +277,8 @@ const badges = [
     rarity: 'epic',
     price: 600,
     requiredLevel: 25,
-    displayOrder: 24
+    displayOrder: 24,
+    slug: 'guardian-de-la-comunidad'
   },
   {
     name: 'Héroe del Pueblo',
@@ -264,7 +288,8 @@ const badges = [
     rarity: 'legendary',
     price: 900,
     requiredLevel: 35,
-    displayOrder: 25
+    displayOrder: 25,
+    slug: 'heroe-del-pueblo'
   },
   
   // LEGENDARIOS - Muy caros y exclusivos
@@ -276,7 +301,8 @@ const badges = [
     rarity: 'legendary',
     price: 1500,
     requiredLevel: 45,
-    displayOrder: 26
+    displayOrder: 26,
+    slug: 'leyenda-viviente'
   },
   {
     name: 'Campeón Supremo',
@@ -286,7 +312,8 @@ const badges = [
     rarity: 'legendary',
     price: 2000,
     requiredLevel: 50,
-    displayOrder: 27
+    displayOrder: 27,
+    slug: 'campeon-supremo'
   },
   {
     name: 'Guardián del Reino',
@@ -296,7 +323,8 @@ const badges = [
     rarity: 'legendary',
     price: 1800,
     requiredLevel: 48,
-    displayOrder: 28
+    displayOrder: 28,
+    slug: 'guardian-del-reino'
   },
   {
     name: 'Maestro de Maestros',
@@ -306,7 +334,8 @@ const badges = [
     rarity: 'legendary',
     price: 2500,
     requiredLevel: 50,
-    displayOrder: 29
+    displayOrder: 29,
+    slug: 'maestro-de-maestros'
   },
   {
     name: 'Elegido de los Dioses',
@@ -316,7 +345,8 @@ const badges = [
     rarity: 'legendary',
     price: 3000,
     requiredLevel: 50,
-    displayOrder: 30
+    displayOrder: 30,
+    slug: 'elegido-de-los-dioses'
   }
 ];
 
@@ -326,9 +356,13 @@ const seedBadges = async () => {
     console.log('✅ Conectado a MongoDB para seed de badges');
     
     for (const badgeData of badges) {
+      const badge = new Badge({
+        ...badgeData,
+        iconUrl: `/assets/icons/badge-${badgeData.slug}.svg`,
+      });
       await Badge.findOneAndUpdate(
         { name: badgeData.name },
-        badgeData,
+        badge,
         { upsert: true, new: true }
       );
       console.log(`✅ Badge creado/actualizado: ${badgeData.name}`);
