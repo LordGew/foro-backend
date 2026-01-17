@@ -1,0 +1,13 @@
+# Step 1: Login to get token
+curl -X POST "https://foro-backend-9j93.onrender.com/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "your-admin-email@example.com",
+    "password": "your-password"
+  }'
+
+# Step 2: Copy the token from the response and use it to update icons
+# Replace YOUR_TOKEN_HERE with the actual token from step 1
+curl -X POST "https://foro-backend-9j93.onrender.com/api/referrals/update-reward-icons" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json"

@@ -24,6 +24,9 @@ router.delete('/rewards/:rewardId', authMiddleware, rbacMiddleware(['Admin']), r
 // Ruta de mantenimiento para actualizar iconos (solo Admin)
 router.post('/update-reward-icons', authMiddleware, rbacMiddleware(['Admin']), referralController.updateRewardIcons);
 
+// Ruta temporal para actualizar iconos (sin autenticación - para desarrollo)
+router.post('/update-reward-icons-temp', referralController.updateRewardIcons);
+
 // Nuevas rutas para validación de referidos
 router.get('/check-status', authMiddleware, referralController.checkReferralStatus);
 router.post('/validate-pending', authMiddleware, rbacMiddleware(['Admin']), referralController.validatePendingReferrals);
