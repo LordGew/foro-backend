@@ -48,12 +48,12 @@ const MISSION_TEMPLATES = [
   {
     type: 'visit_category',
     title: 'Explora una categoría',
-    description: 'Visita cualquier categoría y lee al menos 1 post',
+    description: 'Visita la categoría {categoryName} y lee al menos 1 post',
     icon: '🔍',
     difficulty: 'easy',
     baseValue: 1,
     baseReward: 80,
-    requiresCategory: false,
+    requiresCategory: true,
     maxWeeklyOccurrences: 7 // Máximo 1 vez por día
   }
 ];

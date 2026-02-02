@@ -7,7 +7,7 @@ const referralController = require('../controllers/referralController');
 // Obtener todas las recompensas disponibles
 router.get('/', authMiddleware, referralController.getRewards);
 
-// Obtener mis recompensas
+// Obtener mis recompensas (DEBE IR ANTES DE /:rewardId/equip para evitar conflicto de rutas)
 router.get('/my-rewards', authMiddleware, referralController.getMyRewards);
 
 // Comprar una recompensa
