@@ -448,6 +448,38 @@ exports.createReward = async (req, res) => {
   }
 };
 
+// Admin: Forzar seed de recompensas
+exports.seedRewards = async (req, res) => {
+  try {
+    const seedRewards = require('../seeds/rewardsSeed');
+    
+    // Limpiar recompensas existentes
+    const deletedCount = await RewardItem.deleteMany({});
+    console.log(`🗑️ ${deletedCount.deletedCount} recompensas eliminadas`);
+    
+    // Ejecutar seed
+    await seedRewards();
+    
+    // Obtener recompensas creadas
+    const rewards = await RewardItem.find({});
+    
+    res.json({
+      message: 'Recompensas regeneradas exitosamente',
+      count: rewards.length,
+      rewards: rewards.map(r => ({
+        _id: r._id.toString(),
+        name: r.name,
+        type: r.type,
+        cost: r.cost,
+        rarity: r.rarity
+      }))
+    });
+  } catch (err) {
+    console.error('Error seeding rewards:', err);
+    res.status(500).json({ message: 'Error al regenerar recompensas', error: err.message });
+  }
+};
+
 // Admin: Actualizar recompensa
 exports.updateReward = async (req, res) => {
   try {

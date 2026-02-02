@@ -22,6 +22,9 @@ router.put('/:rewardId/equip', authMiddleware, referralController.equipReward);
 // Desequipar una recompensa
 router.delete('/:type/unequip', authMiddleware, referralController.unequipReward);
 
+// Admin: Forzar seed de recompensas
+router.post('/admin/seed', authMiddleware, rbacMiddleware(['Admin']), referralController.seedRewards);
+
 // Admin: Crear recompensa
 router.post('/', authMiddleware, rbacMiddleware(['Admin']), referralController.createReward);
 
