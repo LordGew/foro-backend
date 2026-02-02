@@ -27,9 +27,7 @@ const uploadSingleImage = (req, res, next) => {
     } else if (err) {
       return res.status(400).json({ message: err.message });
     }
-    if (!req.file) {
-      return res.status(400).json({ message: 'Image file is required' });
-    }
+    // La imagen es opcional - permitir continuar sin ella
     next();
   });
 };
