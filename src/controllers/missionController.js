@@ -46,15 +46,15 @@ const MISSION_TEMPLATES = [
     maxWeeklyOccurrences: 7 // Máximo 1 vez por día, 7 por semana
   },
   {
-    type: 'visit_category',
-    title: 'Explora una categoría',
-    description: 'Visita la categoría {categoryName} y lee al menos 1 post',
-    icon: '🔍',
+    type: 'read_posts',
+    title: 'Lee posts del foro',
+    description: 'Lee al menos 3 posts en cualquier categoría',
+    icon: '�',
     difficulty: 'easy',
-    baseValue: 1,
+    baseValue: 3,
     baseReward: 80,
-    requiresCategory: true,
-    maxWeeklyOccurrences: 7 // Máximo 1 vez por día
+    requiresCategory: false,
+    maxWeeklyOccurrences: 7
   }
 ];
 
