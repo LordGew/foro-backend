@@ -10,6 +10,9 @@ router.get('/', authMiddleware, referralController.getRewards);
 // Obtener mis recompensas (DEBE IR ANTES DE /:rewardId/equip para evitar conflicto de rutas)
 router.get('/my-rewards', authMiddleware, referralController.getMyRewards);
 
+// Debug: Listar todas las recompensas (incluyendo inactivas)
+router.get('/debug/all-rewards', authMiddleware, referralController.debugGetAllRewards);
+
 // Comprar una recompensa
 router.post('/:rewardId/purchase', authMiddleware, referralController.purchaseReward);
 

@@ -213,6 +213,31 @@ exports.getRewards = async (req, res) => {
   }
 };
 
+// Debug: Obtener todas las recompensas (incluyendo inactivas)
+exports.debugGetAllRewards = async (req, res) => {
+  try {
+    const allRewards = await RewardItem.find({});
+    const activeRewards = await RewardItem.find({ isActive: true });
+    
+    res.json({
+      total: allRewards.length,
+      active: activeRewards.length,
+      inactive: allRewards.length - activeRewards.length,
+      rewards: allRewards.map(r => ({
+        _id: r._id.toString(),
+        name: r.name,
+        type: r.type,
+        cost: r.cost,
+        isActive: r.isActive,
+        rarity: r.rarity
+      }))
+    });
+  } catch (err) {
+    console.error('Error getting all rewards:', err);
+    res.status(500).json({ message: 'Error al obtener recompensas', error: err.message });
+  }
+};
+
 // Comprar una recompensa
 exports.purchaseReward = async (req, res) => {
   try {
