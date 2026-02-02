@@ -354,12 +354,15 @@ exports.getTodayMissions = async (req, res) => {
     // Obtener misiones del día
     let missions = await DailyMission.find({ date: today }).populate('requirement.categoryId');
     
-    // Si no hay misiones o si hay misiones con placeholder sin reemplazar, regenerarlas
-    const hasInvalidMissions = missions.some(m => m.description.includes('{categoryName}'));
+    // Si no hay misiones o si hay misiones con placeholder sin reemplazar o tipo visit_category, regenerarlas
+    const hasInvalidMissions = missions.some(m => 
+      m.description.includes('{categoryName}') || m.type === 'visit_category'
+    );
     if (missions.length === 0 || hasInvalidMissions) {
       if (hasInvalidMissions) {
-        Logger.mission('ELIMINANDO MISIONES CON PLACEHOLDER SIN REEMPLAZAR', { count: missions.length });
+        Logger.mission('ELIMINANDO MISIONES INVÁLIDAS', { count: missions.length });
         await DailyMission.deleteMany({ date: today });
+        await UserMissionProgress.deleteMany({ date: today });
       }
       Logger.mission('GENERANDO MISIONES AUTOMÁTICAS', { userId });
       missions = await exports.generateDailyMissions();
