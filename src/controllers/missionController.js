@@ -550,8 +550,28 @@ exports.updateMissionProgress = async (userId, missionType, value = 1, categoryI
               }
             }
             
-            await progress.save();
-            updatedMissions++;
+            // Guardar el progreso con reintentos en caso de error
+            try {
+              await progress.save();
+              updatedMissions++;
+            } catch (saveError) {
+              Logger.error('ERROR GUARDANDO PROGRESO', saveError, {
+                userId,
+                missionId: mission._id.toString(),
+                missionTitle: mission.title,
+                progress: newProgress
+              });
+              // Reintentar una vez más
+              try {
+                await progress.save();
+                updatedMissions++;
+              } catch (retryError) {
+                Logger.error('ERROR GUARDANDO PROGRESO (REINTENTO)', retryError, {
+                  userId,
+                  missionId: mission._id.toString()
+                });
+              }
+            }
           } else {
             Logger.progress('PROGRESO SIN CAMBIOS', {
               userId,
