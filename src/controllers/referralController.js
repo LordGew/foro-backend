@@ -297,39 +297,64 @@ exports.equipReward = async (req, res) => {
     const { rewardId } = req.params;
     const userId = req.user.userId;
     
-    console.log('EquipReward - RewardId:', rewardId);
-    console.log('EquipReward - UserId:', userId);
+    console.log('🎯 EquipReward - RewardId:', rewardId);
+    console.log('🎯 EquipReward - UserId:', userId);
     
     const user = await User.findById(userId);
     if (!user) {
+      console.log('❌ Usuario no encontrado:', userId);
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
     
+    console.log('✅ Usuario encontrado:', user.username);
+    console.log('📦 Recompensas del usuario:', user.ownedRewards.map(r => ({
+      rewardId: r.rewardId.toString(),
+      purchasedAt: r.purchasedAt
+    })));
+    
     const reward = await RewardItem.findById(rewardId);
     if (!reward) {
-      console.log('Reward not found with ID:', rewardId);
-      return res.status(404).json({ message: 'Recompensa no encontrada' });
+      console.log('❌ Recompensa no encontrada con ID:', rewardId);
+      
+      // Listar todas las recompensas disponibles para debugging
+      const allRewards = await RewardItem.find({});
+      console.log('📋 Recompensas disponibles en BD:', allRewards.map(r => ({
+        _id: r._id.toString(),
+        name: r.name,
+        type: r.type,
+        isActive: r.isActive
+      })));
+      
+      return res.status(404).json({ 
+        message: 'Recompensa no encontrada',
+        requestedId: rewardId,
+        availableRewards: allRewards.map(r => r._id.toString())
+      });
     }
     
-    console.log('Reward found:', reward);
+    console.log('✅ Recompensa encontrada:', reward.name);
     
     // Verificar que el usuario posee la recompensa
     const owned = user.ownedRewards.some(r => r.rewardId.toString() === rewardId);
     if (!owned) {
-      console.log('User does not own this reward. Owned rewards:', user.ownedRewards);
+      console.log('❌ Usuario no posee esta recompensa. Recompensas propias:', user.ownedRewards.map(r => r.rewardId.toString()));
       return res.status(403).json({ message: 'No posees esta recompensa' });
     }
+    
+    console.log('✅ Usuario posee la recompensa');
     
     // Equipar la recompensa según su tipo
     user.activeRewards[reward.type] = reward._id;
     await user.save();
+    
+    console.log('✅ Recompensa equipada exitosamente');
     
     res.json({
       message: 'Recompensa equipada exitosamente',
       activeRewards: user.activeRewards
     });
   } catch (err) {
-    console.error('Error equipping reward:', err);
+    console.error('❌ Error equipping reward:', err);
     res.status(500).json({ message: 'Error al equipar recompensa', error: err.message });
   }
 };
