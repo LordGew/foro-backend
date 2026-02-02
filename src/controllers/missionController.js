@@ -957,6 +957,164 @@ exports.getDebugInfo = async (req, res) => {
   }
 };
 
+// Validar y reclamar todas las recompensas disponibles
+exports.validateAndClaimAll = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const today = DateUtils.getStartOfDay();
+    
+    Logger.progress('INICIO VALIDACIÓN Y RECLAMO MASIVO', {
+      userId,
+      date: today.toISOString()
+    });
+    
+    // Obtener todas las misiones del día
+    const missions = await DailyMission.find({ date: today });
+    
+    if (missions.length === 0) {
+      Logger.warning('SIN MISIONES PARA VALIDAR', { userId });
+      return res.json({
+        success: false,
+        message: 'No hay misiones disponibles hoy',
+        claimedCount: 0,
+        totalPoints: 0,
+        totalXp: 0
+      });
+    }
+    
+    // Obtener progreso del usuario
+    const userProgress = await UserMissionProgress.find({
+      userId,
+      date: today
+    });
+    
+    let claimedCount = 0;
+    let totalPoints = 0;
+    let totalXp = 0;
+    let weeklyBonus = 0;
+    
+    // Obtener usuario para actualizar puntos
+    const user = await User.findById(userId);
+    
+    // Procesar cada misión completada
+    for (const mission of missions) {
+      try {
+        const progress = userProgress.find(p => p.missionId.toString() === mission._id.toString());
+        
+        if (!progress) {
+          Logger.progress('PROGRESO NO ENCONTRADO', {
+            userId,
+            missionId: mission._id.toString(),
+            missionTitle: mission.title
+          });
+          continue;
+        }
+        
+        // Si está completada pero no reclamada, reclamarla
+        if (progress.completed && !progress.claimed) {
+          Logger.progress('RECLAMANDO AUTOMÁTICAMENTE', {
+            userId,
+            missionId: mission._id.toString(),
+            missionTitle: mission.title
+          });
+          
+          // Calcular bono por racha
+          const streakBonus = Math.floor(mission.reward.points * (user.dailyStreak.current * 0.1));
+          const missionPoints = mission.reward.points + streakBonus;
+          
+          // Actualizar usuario
+          user.achievementPoints = (user.achievementPoints || 0) + missionPoints;
+          user.xp = (user.xp || 0) + mission.reward.xp;
+          
+          // Marcar como reclamada
+          progress.claimed = true;
+          progress.claimedAt = new Date();
+          await progress.save();
+          
+          totalPoints += missionPoints;
+          totalXp += mission.reward.xp;
+          claimedCount++;
+          
+          Logger.progress('MISIÓN RECLAMADA AUTOMÁTICAMENTE', {
+            userId,
+            missionId: mission._id.toString(),
+            missionTitle: mission.title,
+            points: missionPoints,
+            xp: mission.reward.xp
+          });
+        }
+      } catch (missionError) {
+        Logger.error('ERROR PROCESANDO MISIÓN', missionError, {
+          userId,
+          missionId: mission._id.toString()
+        });
+        continue;
+      }
+    }
+    
+    // Guardar cambios del usuario
+    if (claimedCount > 0) {
+      await user.save();
+      
+      // Verificar si completó todas las misiones del día
+      const allClaimed = await UserMissionProgress.find({
+        userId,
+        date: today,
+        claimed: true
+      });
+      
+      if (missions.length === allClaimed.length) {
+        Logger.progress('TODAS LAS MISIONES RECLAMADAS', {
+          userId,
+          totalMissions: missions.length,
+          claimedMissions: allClaimed.length
+        });
+        
+        // Actualizar racha
+        await exports.updateStreak(userId);
+        
+        // Verificar bono semanal
+        const updatedUser = await User.findById(userId);
+        if (updatedUser.dailyStreak.current % 7 === 0 && updatedUser.dailyStreak.current > 0) {
+          weeklyBonus = 500;
+          updatedUser.achievementPoints += weeklyBonus;
+          await updatedUser.save();
+          
+          Logger.progress('BONO SEMANAL OTORGADO', {
+            userId,
+            streak: updatedUser.dailyStreak.current,
+            weeklyBonus
+          });
+        }
+      }
+    }
+    
+    Logger.progress('VALIDACIÓN Y RECLAMO COMPLETADO', {
+      userId,
+      claimedCount,
+      totalPoints,
+      totalXp,
+      weeklyBonus
+    });
+    
+    res.json({
+      success: claimedCount > 0,
+      message: claimedCount > 0 ? `${claimedCount} recompensas reclamadas` : 'No hay recompensas para reclamar',
+      claimedCount,
+      totalPoints: totalPoints + weeklyBonus,
+      totalXp,
+      weeklyBonus
+    });
+  } catch (err) {
+    Logger.error('VALIDACIÓN Y RECLAMO MASIVO', err, { userId: req.user.userId });
+    res.status(500).json({
+      success: false,
+      message: 'Error al validar y reclamar recompensas',
+      error: err.message
+    });
+  }
+};
+
 // Endpoint para resetear progreso de prueba (solo desarrollo)
 exports.resetTestProgress = async (req, res) => {
   try {

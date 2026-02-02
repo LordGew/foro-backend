@@ -17,6 +17,9 @@ router.get('/today', authMiddleware, missionController.getTodayMissions);
 // Reclamar recompensa de misión
 router.post('/:missionId/claim', authMiddleware, missionController.claimMissionReward);
 
+// Validar y reclamar todas las recompensas disponibles
+router.post('/validate-claim', authMiddleware, missionController.validateAndClaimAll);
+
 // Forzar actualización de progreso de login (para debugging)
 router.post('/force-login', authMiddleware, missionController.forceLoginProgress);
 
