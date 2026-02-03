@@ -16,6 +16,10 @@ const badgeSchema = new mongoose.Schema({
     required: true,
     default: '🎖️'
   },
+  iconUrl: {
+    type: String,
+    default: null
+  },
   category: {
     type: String,
     enum: ['military', 'explorer', 'special', 'legendary', 'event'],
