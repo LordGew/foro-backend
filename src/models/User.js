@@ -241,6 +241,12 @@ const UserSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Badge'
   }],
+  // Insignia equipada actualmente
+  equippedBadge: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Badge',
+    default: null
+  },
   // Sistema de rachas diarias
   dailyStreak: {
     current: {

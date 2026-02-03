@@ -25,7 +25,9 @@ const {
   handleStripeWebhook,
   unblockUser,
   refreshToken,
-  updateRoleplayIntro
+  updateRoleplayIntro,
+  equipBadge,
+  unequipBadge
 } = require('../controllers/userController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const rbacMiddleware = require('../middlewares/rbacMiddleware');
@@ -139,5 +141,9 @@ router.patch('/update-profile-image', authMiddleware, uploadProfileImageToCloudi
 
 // Ruta para actualizar presentación RPG
 router.put('/roleplay-intro', authMiddleware, updateRoleplayIntro);
+
+// Rutas para equipar/desequipar insignias
+router.put('/equip-badge', authMiddleware, equipBadge);
+router.put('/unequip-badge', authMiddleware, unequipBadge);
 
 module.exports = router;

@@ -978,6 +978,60 @@ const updateRoleplayIntro = async (req, res) => {
   }
 };
 
+// Equipar una insignia
+const equipBadge = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { badgeId } = req.body;
+
+    if (!badgeId) {
+      return res.status(400).json({ message: 'Badge ID es requerido' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // Verificar que el usuario posee el badge
+    if (!user.badges || !user.badges.includes(badgeId)) {
+      return res.status(400).json({ message: 'No posees este badge' });
+    }
+
+    // Equipar el badge
+    user.equippedBadge = badgeId;
+    await user.save();
+
+    console.log(`✅ Badge equipado para usuario ${user.username}: ${badgeId}`);
+    res.json({ message: 'Badge equipado exitosamente', equippedBadge: badgeId });
+  } catch (error) {
+    console.error('Error al equipar badge:', error);
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+  }
+};
+
+// Desequipar una insignia
+const unequipBadge = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // Desequipar el badge
+    user.equippedBadge = null;
+    await user.save();
+
+    console.log(`✅ Badge desequipado para usuario ${user.username}`);
+    res.json({ message: 'Badge desequipado exitosamente' });
+  } catch (error) {
+    console.error('Error al desequipar badge:', error);
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+  }
+};
+
 module.exports = { 
   register, 
   login, 
@@ -1002,8 +1056,10 @@ module.exports = {
   createPaymentIntent,
   handleStripeWebhook,
   unblockUser,
+  refreshToken,
   acceptRequest,
   cleanProfileImages,
-  refreshToken,
-  updateRoleplayIntro
+  updateRoleplayIntro,
+  equipBadge,
+  unequipBadge
 };
