@@ -13,5 +13,6 @@ router.post('/:badgeId/purchase', authMiddleware, badgeController.purchaseBadge)
 router.post('/', authMiddleware, rbacMiddleware(['Admin']), badgeController.createBadge);
 router.put('/:badgeId', authMiddleware, rbacMiddleware(['Admin']), badgeController.updateBadge);
 router.delete('/:badgeId', authMiddleware, rbacMiddleware(['Admin']), badgeController.deleteBadge);
+router.post('/admin/seed', authMiddleware, rbacMiddleware(['Admin']), badgeController.seedBadges);
 
 module.exports = router;
