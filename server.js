@@ -14,6 +14,7 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./src/config/db');
 const seed = require('./seed');
 
+// Version: 2.0.1 - Updated with badge equip/unequip endpoints and functionality
 // Cargar variables de entorno
 dotenv.config();
 
