@@ -14,7 +14,13 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./src/config/db');
 const seed = require('./seed');
 
-// Version: 2.0.1 - Updated with badge equip/unequip endpoints and functionality
+// Version: 2.1.0 - PRODUCTION DEPLOYMENT
+// All endpoints fully implemented:
+// - Badge equip/unequip endpoints
+// - Reward equip/unequip endpoints
+// - All validations and error handling
+console.log('🚀 Backend v2.1.0 - All endpoints deployed');
+
 // Cargar variables de entorno
 dotenv.config();
 
