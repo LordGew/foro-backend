@@ -780,4 +780,55 @@ exports.updateRewardIcons = async (req, res) => {
   }
 };
 
+// Limpiar recompensas inválidas del usuario
+exports.cleanupInvalidRewards = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    // Obtener todas las recompensas válidas
+    const validRewards = await RewardItem.find({ isActive: true });
+    const validRewardIds = validRewards.map(r => r._id.toString());
+    
+    // Filtrar recompensas inválidas
+    const originalCount = user.ownedRewards.length;
+    user.ownedRewards = user.ownedRewards.filter(r => 
+      validRewardIds.includes(r.rewardId.toString())
+    );
+    
+    // Limpiar recompensas activas inválidas
+    if (user.activeRewards) {
+      if (user.activeRewards.emoji && !validRewardIds.includes(user.activeRewards.emoji.toString())) {
+        user.activeRewards.emoji = null;
+      }
+      if (user.activeRewards.title && !validRewardIds.includes(user.activeRewards.title.toString())) {
+        user.activeRewards.title = null;
+      }
+      if (user.activeRewards.theme && !validRewardIds.includes(user.activeRewards.theme.toString())) {
+        user.activeRewards.theme = null;
+      }
+      if (user.activeRewards.frame && !validRewardIds.includes(user.activeRewards.frame.toString())) {
+        user.activeRewards.frame = null;
+      }
+    }
+    
+    await user.save();
+    
+    res.json({
+      message: 'Recompensas limpiadas exitosamente',
+      removed: originalCount - user.ownedRewards.length,
+      remaining: user.ownedRewards.length,
+      ownedRewards: user.ownedRewards,
+      activeRewards: user.activeRewards
+    });
+  } catch (err) {
+    console.error('Error cleaning up invalid rewards:', err);
+    res.status(500).json({ message: 'Error al limpiar recompensas', error: err.message });
+  }
+};
+
 module.exports = exports;

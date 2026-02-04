@@ -8,6 +8,9 @@ const referralController = require('../controllers/referralController');
 // Obtener mis recompensas
 router.get('/my-rewards', authMiddleware, referralController.getMyRewards);
 
+// Limpiar recompensas inválidas del usuario
+router.post('/cleanup-invalid', authMiddleware, referralController.cleanupInvalidRewards);
+
 // Debug: Listar todas las recompensas (incluyendo inactivas)
 router.get('/debug/all-rewards', authMiddleware, referralController.debugGetAllRewards);
 
