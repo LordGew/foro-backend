@@ -1,6 +1,6 @@
 {
   "name": "wow-forum-backend",
-  "version": "1.0.0",
+  "version": "2.1.4",
   "main": "server.js",
   "scripts": {
     "test": "set NODE_ENV=test&& jest --runInBand --detectOpenHandles",
