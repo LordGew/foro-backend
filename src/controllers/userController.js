@@ -77,6 +77,19 @@ const getUsersCount = async (req, res) => {
   }
 };
 
+// Estadísticas de usuarios (público)
+// Devuelve el usuario más reciente y el más antiguo registrado
+const getUsersStats = async (req, res) => {
+  try {
+    const newestUser = await User.findOne().sort({ createdAt: -1 }).select('_id username createdAt');
+    const oldestUser = await User.findOne().sort({ createdAt: 1 }).select('_id username createdAt');
+    res.json({ newestUser, oldestUser });
+  } catch (err) {
+    console.error('Error al obtener estadísticas de usuarios:', err);
+    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
+  }
+};
+
 // Registro
 // Esta función registra un nuevo usuario, validando los inputs y comprobando si el username o email ya existen.
 const register = async (req, res) => {
@@ -1049,6 +1062,7 @@ module.exports = {
   searchUsers,
   getOnlineUsers,
   getUsersCount,
+  getUsersStats,
   activateVip,
   deactivateVip,
   checkVipStatus,

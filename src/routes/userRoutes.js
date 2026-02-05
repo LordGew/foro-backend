@@ -17,6 +17,7 @@ const {
   searchUsers,
   getOnlineUsers,
   getUsersCount,
+  getUsersStats,
   deactivateVip,
   activateVip,
   checkVipStatus,
@@ -57,6 +58,7 @@ router.post('/logout', authMiddleware, logout);
 
 // Búsqueda y consultas (sin CSRF, lectura)
 router.get('/count', getUsersCount);
+router.get('/stats', getUsersStats);
 router.get('/online', authMiddleware, getOnlineUsers);
 router.get('/search', searchUsers);
 
