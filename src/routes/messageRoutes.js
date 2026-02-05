@@ -16,7 +16,8 @@ const {
   addReaction,
   deleteMessage,
   editMessage,
-  unblockUser
+  unblockUser,
+  getBlockedUsers
 } = require('../controllers/messageController');
 const authMiddleware = require('../middlewares/authMiddleware');
 // REMOVIDO: csrfProtection = require('csurf'); // Para mutantes
@@ -25,6 +26,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 router.get('/', authMiddleware, getChats);  // Lista de chats
 router.get('/requests', authMiddleware, getRequests);  // Solicitudes pendientes
 router.get('/chat/:chatId', authMiddleware, getMessages);  // Mensajes de chat
+router.get('/blocked', authMiddleware, getBlockedUsers);  // Usuarios bloqueados
 
 // ===== RUTAS DE CREACIÓN (POST) =====
 router.post('/request/:targetId', authMiddleware, sendRequest);  // REMOVIDO: csrfProtection

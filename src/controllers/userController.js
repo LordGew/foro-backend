@@ -965,17 +965,17 @@ const updateRoleplayIntro = async (req, res) => {
     const userId = req.user.userId;
     const { roleplayIntro } = req.body;
 
-    if (!roleplayIntro || roleplayIntro.trim() === '') {
-      return res.status(400).json({ message: 'La presentación no puede estar vacía' });
-    }
-
-    if (roleplayIntro.length > 200) {
+    if (roleplayIntro !== undefined && roleplayIntro !== null && roleplayIntro.length > 200) {
       return res.status(400).json({ message: 'La presentación no puede exceder 200 caracteres' });
     }
 
+    const newIntro = (roleplayIntro && roleplayIntro.trim() !== '') 
+      ? roleplayIntro.trim() 
+      : 'Yo soy {username}, conocido como {titleName}, un aventurero de Azeroth';
+
     const user = await User.findByIdAndUpdate(
       userId,
-      { roleplayIntro: roleplayIntro.trim() },
+      { roleplayIntro: newIntro },
       { new: true }
     ).select('-password');
 

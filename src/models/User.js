@@ -56,7 +56,7 @@ const UserSchema = new mongoose.Schema({
   roleplayIntro: {
     type: String,
     maxlength: 200,
-    default: 'el aventurero'
+    default: 'Yo soy {username}, conocido como {titleName}, un aventurero de Azeroth'
   },
   socialLinks: {
     twitter: { type: String, maxlength: 100 },
@@ -140,6 +140,15 @@ const UserSchema = new mongoose.Schema({
     type: String, 
     enum: ['none', 'basic', 'premium', 'lifetime'], 
     default: 'none' 
+  },
+  vipMonthsAccumulated: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  vipActivatedAt: {
+    type: Date,
+    default: null
   },
   vipBenefits: { 
     type: mongoose.Schema.Types.ObjectId, 

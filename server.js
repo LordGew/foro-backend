@@ -275,6 +275,7 @@ const shopRoutes = require('./src/routes/shopRoutes');
 const badgeRoutes = require('./src/routes/badgeRoutes');
 const missionRoutes = require('./src/routes/missionRoutes');
 const rewardRoutes = require('./src/routes/rewardRoutes');
+const vipRewardRoutes = require('./src/routes/vipRewardRoutes');
 
 // 🍪 Sistema de gestión de cookies
 const { 
@@ -312,6 +313,7 @@ app.use('/api/missions', (req, res, next) => {
   next();
 }, missionRoutes);
 app.use('/api/rewards', rewardRoutes);
+app.use('/api/vip-rewards', vipRewardRoutes);
 app.use('/api', healthRoutes);
 
 // Endpoint temporal para ejecutar seed de juegos (ELIMINAR DESPUÉS DE USAR)
@@ -521,6 +523,10 @@ const startServer = async () => {
     // Ejecutar seed de badges de eventos
     const seedEventBadges = require('./src/scripts/seedEventBadges');
     await seedEventBadges();
+
+    // Ejecutar seed de recompensas VIP
+    const { seedVipRewards } = require('./src/controllers/vipRewardController');
+    await seedVipRewards();
 
     // Iniciar cron job de expiración VIP
     const { startVipExpirationNotifier } = require('./src/jobs/vipExpirationNotifier');

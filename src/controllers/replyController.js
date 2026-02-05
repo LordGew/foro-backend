@@ -66,8 +66,6 @@ const removeDislikeXp = async (userId) => {
 };
 
 const createReply = async (req, res) => {
-  console.log('createReply hit! Token header:', req.headers['x-xsrf-token'] ? req.headers['x-xsrf-token'].substring(0, 10) + '...' : 'MISSING');  // 👈 NUEVO: Debug token
-  console.log('Session _csrf:', req.session._csrf ? req.session._csrf.substring(0, 10) + '...' : 'NO SESSION');  // 👈 NUEVO: Debug session
   try {
     if (!req.body) {
       return res.status(400).json({ message: 'No se recibió el cuerpo de la solicitud' });
@@ -91,12 +89,32 @@ const createReply = async (req, res) => {
       }
     }
 
+    // Upload images to Cloudinary if present
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      const cloudinary = require('cloudinary').v2;
+      for (const file of req.files) {
+        const result = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { resource_type: 'image', folder: 'replies' },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          stream.end(file.buffer);
+        });
+        imageUrls.push(result.secure_url);
+      }
+    }
+
     const reply = new Reply({ 
       content: sanitizedContent, 
       post: req.params.postId, 
       author: req.user.userId,
       parentReply,
-      quote: sanitizedQuote
+      quote: sanitizedQuote,
+      images: imageUrls
     });
     
     await reply.save();

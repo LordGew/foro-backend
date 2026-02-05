@@ -47,8 +47,19 @@ router.post('/:id/like', authMiddleware, likePost);
 // Dislike post
 router.post('/:id/dislike', authMiddleware, dislikePost);
 
+const multer = require('multer');
+const uploadReplyImages = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|webp/;
+    if (allowed.test(file.mimetype)) return cb(null, true);
+    cb(new Error('Solo se permiten imágenes (JPG, PNG, GIF, WebP)'));
+  }
+});
+
 // Ruta para crear respuestas (reenvía a replyRoutes, pero como frontend llama /posts/:id/replies, agregamos esta ruta)
-router.post('/:id/replies', authMiddleware, (req, res, next) => {
+router.post('/:id/replies', authMiddleware, uploadReplyImages.array('images', 5), (req, res, next) => {
   req.params.postId = req.params.id;
   next();
 }, require('../controllers/replyController').createReply);

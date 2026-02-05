@@ -6,8 +6,9 @@ const ReplySchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
   parentReply: { type: mongoose.Schema.Types.ObjectId, ref: 'Reply' },
+  images: [{ type: String }],
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],  // Add this line
+  dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],  
   createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 

@@ -56,14 +56,13 @@ const getUsers = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Formatear usuarios para el frontend
     const formattedUsers = users.map(user => ({
       _id: user._id,
       username: user.username,
       email: user.email,
       role: user.role,
       xp: user.xp,
-      profileImage: user.profileImage || '', // Devolver sin concatenar, solo Cloudinary o ''
+      profileImage: user.profileImage || '',
       banned: user.banned || false,
       muted: user.muted || false,
       banReason: user.banReason,
@@ -86,7 +85,6 @@ const getUsers = async (req, res) => {
   }
 };
 
-// Aplicar referido manualmente a un usuario específico
 const applyManualReferral = async (req, res) => {
   try {
     const { referredUsername, referrerUsername } = req.body;
@@ -100,7 +98,6 @@ const applyManualReferral = async (req, res) => {
     
     const Referral = require('../models/Referral');
     
-    // Buscar usuarios
     const referred = await User.findOne({ username: referredUsername });
     const referrer = await User.findOne({ username: referrerUsername });
     
@@ -118,7 +115,6 @@ const applyManualReferral = async (req, res) => {
       });
     }
     
-    // Verificar si ya existe el referido
     const existingReferral = await Referral.findOne({
       referrer: referrer._id,
       referred: referred._id
@@ -132,7 +128,6 @@ const applyManualReferral = async (req, res) => {
       });
     }
     
-    // Crear referido en estado PENDING
     const referral = new Referral({
       referrer: referrer._id,
       referred: referred._id,
@@ -144,12 +139,10 @@ const applyManualReferral = async (req, res) => {
     
     await referral.save();
     
-    // Dar 50 puntos al usuario referido
     referred.referralPoints = (referred.referralPoints || 0) + 50;
     referred.referredBy = referrer._id;
     await referred.save();
     
-    // Actualizar contador del referidor
     referrer.totalReferrals += 1;
     await referrer.save();
     
@@ -180,7 +173,6 @@ const fixCategoriesGame = async (req, res) => {
   try {
     console.log(' Iniciando reparación de categorías sin juego...');
     
-    // Buscar el juego World of Warcraft
     const wowGame = await Game.findOne({ name: 'World of Warcraft' });
     
     if (!wowGame) {
@@ -195,7 +187,6 @@ const fixCategoriesGame = async (req, res) => {
     
     console.log(` Juego encontrado: ${wowGame.name} (ID: ${wowGame._id})`);
     
-    // Buscar categorías sin juego asignado
     const categoriesWithoutGame = await Category.find({
       $or: [
         { game: null },
@@ -217,7 +208,6 @@ const fixCategoriesGame = async (req, res) => {
       });
     }
     
-    // Actualizar categorías sin juego
     const result = await Category.updateMany(
       {
         $or: [
@@ -232,7 +222,6 @@ const fixCategoriesGame = async (req, res) => {
     
     console.log(` Actualización completada: ${result.modifiedCount} categorías actualizadas`);
     
-    // Verificar resultado
     const updatedCategories = await Category.find({}).populate('game', 'name');
     
     res.json({
@@ -255,12 +244,10 @@ const fixCategoriesGame = async (req, res) => {
   }
 };
 
-// Migrar roles antiguos a nuevos
 const migrateRoles = async (req, res) => {
   try {
     console.log(' Iniciando migración de roles...');
     
-    // Mapeo de roles antiguos a nuevos
     const roleMapping = {
       'Player': 'player',
       'GameMaster': 'gamemaster',
@@ -269,7 +256,6 @@ const migrateRoles = async (req, res) => {
     
     let migratedCount = 0;
     
-    // Buscar usuarios con roles antiguos
     for (const [oldRole, newRole] of Object.entries(roleMapping)) {
       const result = await User.updateMany(
         { role: oldRole },
@@ -282,7 +268,6 @@ const migrateRoles = async (req, res) => {
       }
     }
     
-    // Verificar resultado
     const roleCounts = await User.aggregate([
       {
         $group: {
@@ -316,26 +301,31 @@ const manageUserVip = async (req, res) => {
   try {
     const { userId } = req.params;
     const { action, duration, tier } = req.body;
-    // action: 'activate' | 'deactivate' | 'lifetime'
-    // duration: número de días (solo para 'activate')
-    // tier: 'basic' | 'premium' | 'lifetime' (opcional)
 
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
+    const { autoUnlockVipRewards } = require('./vipRewardController');
+
     if (action === 'activate') {
       const days = parseInt(duration) || 30;
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + days);
+
+      const monthsToAdd = Math.ceil(days / 30);
+      user.vipMonthsAccumulated = (user.vipMonthsAccumulated || 0) + monthsToAdd;
+      if (!user.vipActivatedAt) user.vipActivatedAt = new Date();
 
       user.vip = true;
       user.vipExpiresAt = expiresAt;
       user.vipTier = tier || 'basic';
       await user.save();
 
-      console.log(`👑 VIP activado para ${user.username}: ${days} días, tier: ${user.vipTier}`);
+      const unlockResult = await autoUnlockVipRewards(user._id);
+
+      console.log(`👑 VIP activado para ${user.username}: ${days} días (${monthsToAdd} meses), tier: ${user.vipTier}, meses acumulados: ${user.vipMonthsAccumulated}`);
       return res.json({
         message: `VIP activado para ${user.username} por ${days} días`,
         user: {
@@ -343,18 +333,24 @@ const manageUserVip = async (req, res) => {
           username: user.username,
           vip: user.vip,
           vipExpiresAt: user.vipExpiresAt,
-          vipTier: user.vipTier
-        }
+          vipTier: user.vipTier,
+          vipMonthsAccumulated: user.vipMonthsAccumulated
+        },
+        unlockedRewards: unlockResult.unlocked || []
       });
     }
 
     if (action === 'lifetime') {
       user.vip = true;
-      user.vipExpiresAt = null; // null = vitalicio
+      user.vipExpiresAt = null;
       user.vipTier = 'lifetime';
+      user.vipMonthsAccumulated = Math.max(user.vipMonthsAccumulated || 0, 12);
+      if (!user.vipActivatedAt) user.vipActivatedAt = new Date();
       await user.save();
 
-      console.log(`👑 VIP vitalicio activado para ${user.username}`);
+      const unlockResult = await autoUnlockVipRewards(user._id);
+
+      console.log(`👑 VIP vitalicio activado para ${user.username}, meses acumulados: ${user.vipMonthsAccumulated}`);
       return res.json({
         message: `VIP vitalicio activado para ${user.username}`,
         user: {
@@ -362,8 +358,10 @@ const manageUserVip = async (req, res) => {
           username: user.username,
           vip: user.vip,
           vipExpiresAt: user.vipExpiresAt,
-          vipTier: user.vipTier
-        }
+          vipTier: user.vipTier,
+          vipMonthsAccumulated: user.vipMonthsAccumulated
+        },
+        unlockedRewards: unlockResult.unlocked || []
       });
     }
 
@@ -381,7 +379,8 @@ const manageUserVip = async (req, res) => {
           username: user.username,
           vip: user.vip,
           vipExpiresAt: user.vipExpiresAt,
-          vipTier: user.vipTier
+          vipTier: user.vipTier,
+          vipMonthsAccumulated: user.vipMonthsAccumulated
         }
       });
     }

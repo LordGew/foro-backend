@@ -596,6 +596,21 @@ const unblockUser = async (req, res) => {
 };
 
 
+// Get Blocked Users
+const getBlockedUsers = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const user = await User.findById(userId).populate('blockedUsers', '_id username name avatar profileImage');
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    res.json({ blockedUsers: user.blockedUsers || [] });
+  } catch (err) {
+    console.error('Error en getBlockedUsers:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // Exports (todas las funciones definidas arriba)
 module.exports = {
   deleteMessage,
@@ -613,5 +628,6 @@ module.exports = {
   sendRequest,
   acceptRequest,
   rejectRequest,
-  unblockUser
+  unblockUser,
+  getBlockedUsers
 };
