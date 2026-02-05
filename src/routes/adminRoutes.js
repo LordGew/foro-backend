@@ -6,7 +6,8 @@ const {
   getUsers,
   fixCategoriesGame,
   applyManualReferral,
-  migrateRoles
+  migrateRoles,
+  manageUserVip
 } = require('../controllers/adminController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const rbacMiddleware = require('../middlewares/rbacMiddleware');
@@ -17,5 +18,6 @@ router.get('/users', authMiddleware, rbacMiddleware('Admin'), getUsers);
 router.post('/fix-categories-game', authMiddleware, rbacMiddleware('Admin'), fixCategoriesGame);
 router.post('/apply-manual-referral', authMiddleware, rbacMiddleware('Admin'), applyManualReferral);
 router.post('/migrate-roles', authMiddleware, rbacMiddleware('Admin'), migrateRoles);
+router.put('/users/:userId/vip', authMiddleware, rbacMiddleware('Admin'), manageUserVip);
 
 module.exports = router;

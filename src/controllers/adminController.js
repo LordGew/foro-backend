@@ -68,6 +68,9 @@ const getUsers = async (req, res) => {
       muted: user.muted || false,
       banReason: user.banReason,
       banExpires: user.banExpires,
+      vip: user.vip || false,
+      vipExpiresAt: user.vipExpiresAt || null,
+      vipTier: user.vipTier || 'none',
       createdAt: user.createdAt,
       lastLogin: user.lastLogin
     }));
@@ -308,11 +311,95 @@ const migrateRoles = async (req, res) => {
   }
 };
 
+// Gestionar VIP de un usuario manualmente
+const manageUserVip = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { action, duration, tier } = req.body;
+    // action: 'activate' | 'deactivate' | 'lifetime'
+    // duration: número de días (solo para 'activate')
+    // tier: 'basic' | 'premium' | 'lifetime' (opcional)
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    if (action === 'activate') {
+      const days = parseInt(duration) || 30;
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + days);
+
+      user.vip = true;
+      user.vipExpiresAt = expiresAt;
+      user.vipTier = tier || 'basic';
+      await user.save();
+
+      console.log(`👑 VIP activado para ${user.username}: ${days} días, tier: ${user.vipTier}`);
+      return res.json({
+        message: `VIP activado para ${user.username} por ${days} días`,
+        user: {
+          _id: user._id,
+          username: user.username,
+          vip: user.vip,
+          vipExpiresAt: user.vipExpiresAt,
+          vipTier: user.vipTier
+        }
+      });
+    }
+
+    if (action === 'lifetime') {
+      user.vip = true;
+      user.vipExpiresAt = null; // null = vitalicio
+      user.vipTier = 'lifetime';
+      await user.save();
+
+      console.log(`👑 VIP vitalicio activado para ${user.username}`);
+      return res.json({
+        message: `VIP vitalicio activado para ${user.username}`,
+        user: {
+          _id: user._id,
+          username: user.username,
+          vip: user.vip,
+          vipExpiresAt: user.vipExpiresAt,
+          vipTier: user.vipTier
+        }
+      });
+    }
+
+    if (action === 'deactivate') {
+      user.vip = false;
+      user.vipExpiresAt = null;
+      user.vipTier = 'none';
+      await user.save();
+
+      console.log(`❌ VIP desactivado para ${user.username}`);
+      return res.json({
+        message: `VIP desactivado para ${user.username}`,
+        user: {
+          _id: user._id,
+          username: user.username,
+          vip: user.vip,
+          vipExpiresAt: user.vipExpiresAt,
+          vipTier: user.vipTier
+        }
+      });
+    }
+
+    return res.status(400).json({ message: 'Acción inválida. Usa: activate, deactivate o lifetime' });
+
+  } catch (err) {
+    console.error('Error al gestionar VIP:', err);
+    res.status(500).json({ message: 'Error al gestionar VIP', error: err.message });
+  }
+};
+
 module.exports = { 
   updateForumSettings, 
   getForumSettings, 
   getUsers,
   fixCategoriesGame,
   applyManualReferral,
-  migrateRoles
+  migrateRoles,
+  manageUserVip
 };
