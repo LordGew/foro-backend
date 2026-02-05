@@ -204,7 +204,7 @@ const getPosts = async (req, res) => {
     }
 
     posts = await Post.find(query)
-      .populate('author', 'username profileImage _id')
+      .populate('author', 'username profileImage _id role vip')
       .populate('category', 'name')
       .sort({ createdAt: -1 })
       .limit(20);
@@ -472,13 +472,13 @@ const getPostById = async (req, res) => {
     if (mongoose.Types.ObjectId.isValid(param)) {
       // Buscar por ID
       post = await Post.findById(param)
-        .populate('author', 'username profileImage _id')
+        .populate('author', 'username profileImage _id role vip')
         .populate('category', 'name')
         .populate('replies', 'content author likes dislikes createdAt');
     } else {
       // Buscar por slug
       post = await Post.findOne({ slug: param })
-        .populate('author', 'username profileImage _id')
+        .populate('author', 'username profileImage _id role vip')
         .populate('category', 'name')
         .populate('replies', 'content author likes dislikes createdAt');
     }
@@ -528,7 +528,7 @@ const getPostsByCategoryParam = async (req, res) => {
       .populate([
         { 
           path: 'author', 
-          select: 'username profileImage postCount replyCount xp _id',
+          select: 'username profileImage _id role vip',
           transform: (doc) => {
             if (doc && doc.profileImage && !doc.profileImage.startsWith('http')) {
               doc.profileImage = `https://res.cloudinary.com/duqywugjo/image/upload/v1759376255/profiles/${doc.profileImage}`;
@@ -540,10 +540,10 @@ const getPostsByCategoryParam = async (req, res) => {
         {
           path: 'replies',
           populate: [
-            { path: 'author', select: 'username profileImage _id' },
+            { path: 'author', select: 'username profileImage _id role vip' },
             { path: 'likes', select: 'username' },
             { path: 'dislikes', select: 'username' },
-            { path: 'parentReply', populate: { path: 'author', select: 'username profileImage _id' } }
+            { path: 'parentReply', populate: { path: 'author', select: 'username profileImage _id role vip' } }
           ],
           options: { sort: { createdAt: 1 } }
         },

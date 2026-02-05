@@ -127,7 +127,7 @@ const createReply = async (req, res) => {
       .populate([
         {
           path: 'author',
-          select: 'username profileImage replyCount _id role activeRewards',
+          select: 'username profileImage replyCount _id role vip activeRewards',
           transform: (doc) => {
             if (doc && doc.profileImage && !doc.profileImage.startsWith('http')) {
               doc.profileImage = `https://res.cloudinary.com/duqywugjo/image/upload/v1759376255/profiles/${doc.profileImage}`;
@@ -140,7 +140,7 @@ const createReply = async (req, res) => {
         {
           path: 'parentReply',
           populate: [
-            { path: 'author', select: 'username profileImage _id' }
+            { path: 'author', select: 'username profileImage _id role vip' }
           ]
         }
       ]);
@@ -206,7 +206,7 @@ const toggleLike = async (req, res) => {
       .populate([
         {
           path: 'author',
-          select: 'username profileImage replyCount _id role activeRewards',
+          select: 'username profileImage replyCount _id role vip activeRewards',
           transform: (doc) => {
             if (doc && doc.profileImage && !doc.profileImage.startsWith('http')) {
               doc.profileImage = `https://res.cloudinary.com/duqywugjo/image/upload/v1759376255/profiles/${doc.profileImage}`;
@@ -219,7 +219,7 @@ const toggleLike = async (req, res) => {
         {
           path: 'parentReply',
           populate: [
-            { path: 'author', select: 'username profileImage _id' }
+            { path: 'author', select: 'username profileImage _id role vip' }
           ]
         }
       ]);
@@ -275,7 +275,7 @@ const toggleDislike = async (req, res) => {
       .populate([
         {
           path: 'author',
-          select: 'username profileImage replyCount _id role activeRewards',
+          select: 'username profileImage replyCount _id role vip activeRewards',
           transform: (doc) => {
             if (doc && doc.profileImage && !doc.profileImage.startsWith('http')) {
               doc.profileImage = `https://res.cloudinary.com/duqywugjo/image/upload/v1759376255/profiles/${doc.profileImage}`;
@@ -288,7 +288,7 @@ const toggleDislike = async (req, res) => {
         {
           path: 'parentReply',
           populate: [
-            { path: 'author', select: 'username profileImage _id' }
+            { path: 'author', select: 'username profileImage _id role vip' }
           ]
         }
       ]);
@@ -337,7 +337,7 @@ const getReplies = async (req, res) => {
       .populate([
         {
           path: 'author',
-          select: 'username profileImage replyCount _id role activeRewards',
+          select: 'username profileImage replyCount _id role vip activeRewards',
           transform: (doc) => {
             if (doc && doc.profileImage && !doc.profileImage.startsWith('http')) {
               doc.profileImage = `https://res.cloudinary.com/duqywugjo/image/upload/v1759376255/profiles/${doc.profileImage}`;
@@ -350,7 +350,7 @@ const getReplies = async (req, res) => {
         {
           path: 'parentReply',
           populate: [
-            { path: 'author', select: 'username profileImage _id' }
+            { path: 'author', select: 'username profileImage _id role vip' }
           ]
         }
       ])
@@ -367,7 +367,7 @@ const getAllReplies = async (req, res) => {
   try {
     // Para el panel de moderación, devolver todos los comentarios sin paginación
     const replies = await Reply.find({})
-      .populate('author', 'username profileImage replyCount')
+      .populate('author', 'username profileImage replyCount role vip')
       .populate('post', 'title')
       .populate('likes', 'username profileImage')
       .populate('dislikes', 'username profileImage')
@@ -431,7 +431,7 @@ const updateReply = async (req, res) => {
     await reply.save();
     
     const updatedReply = await Reply.findById(req.params.id)
-      .populate('author', 'username profileImage replyCount')
+      .populate('author', 'username profileImage replyCount role vip')
       .populate('likes', 'username profileImage')
       .populate('dislikes', 'username profileImage')
       .populate('parentReply', 'content author');
