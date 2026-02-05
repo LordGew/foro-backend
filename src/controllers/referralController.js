@@ -831,4 +831,38 @@ exports.cleanupInvalidRewards = async (req, res) => {
   }
 };
 
+// Limpiar TODAS las recompensas del usuario (endpoint temporal)
+exports.clearAllRewards = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    const removedCount = user.ownedRewards.length;
+    
+    // Limpiar todas las recompensas
+    user.ownedRewards = [];
+    user.activeRewards = {
+      emoji: null,
+      title: null,
+      theme: null,
+      frame: null
+    };
+    
+    await user.save();
+    
+    res.json({
+      message: 'Todas las recompensas han sido eliminadas',
+      removed: removedCount,
+      remaining: 0
+    });
+  } catch (err) {
+    console.error('Error clearing all rewards:', err);
+    res.status(500).json({ message: 'Error al limpiar todas las recompensas', error: err.message });
+  }
+};
+
 module.exports = exports;

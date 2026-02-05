@@ -13,6 +13,7 @@ router.get('/my-referrals', authMiddleware, referralController.getMyReferrals);
 router.get('/rewards', authMiddleware, referralController.getRewards);
 router.get('/my-rewards', authMiddleware, referralController.getMyRewards);
 router.post('/cleanup-invalid', authMiddleware, referralController.cleanupInvalidRewards);
+router.post('/clear-all-rewards', authMiddleware, referralController.clearAllRewards);
 router.post('/rewards/:rewardId/purchase', authMiddleware, referralController.purchaseReward);
 router.put('/rewards/:rewardId/equip', authMiddleware, referralController.equipReward);
 router.delete('/rewards/:type/unequip', authMiddleware, referralController.unequipReward);
