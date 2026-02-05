@@ -29,8 +29,8 @@ router.get('/count', getPostsCount);
 // Obtener posts por categoría (auth opcional para verificar acceso VIP)
 router.get('/category/:id', optionalAuth, getPostsByCategoryParam);
 
-// Obtener post por ID o slug
-router.get('/:param', getPostById);
+// Obtener post por ID o slug (auth opcional para verificar acceso VIP)
+router.get('/:param', optionalAuth, getPostById);
 
 // Actualizar post
 router.put('/:id', uploadSingleImage, authMiddleware, updatePost);
