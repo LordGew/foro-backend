@@ -3,6 +3,7 @@ const router = express.Router();
 const authMiddleware = require('../middlewares/authMiddleware');
 const rbacMiddleware = require('../middlewares/rbacMiddleware');
 const uploadSingleImage = require('../middlewares/uploadMiddleware');
+const optionalAuth = require('../middlewares/optionalAuthMiddleware');
 const {
   createPost,
   getPosts,
@@ -25,8 +26,8 @@ router.get('/', getPosts);
 // Obtener conteo de posts (nueva ruta)
 router.get('/count', getPostsCount);
 
-// Obtener posts por categoría
-router.get('/category/:id', getPostsByCategoryParam);
+// Obtener posts por categoría (auth opcional para verificar acceso VIP)
+router.get('/category/:id', optionalAuth, getPostsByCategoryParam);
 
 // Obtener post por ID o slug
 router.get('/:param', getPostById);
