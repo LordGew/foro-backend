@@ -330,13 +330,34 @@ exports.equipReward = async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
     
+    console.log('📦 ownedRewards del usuario:', user.ownedRewards.map(r => r.rewardId?.toString()));
+    
     // Verificar que el usuario posee la recompensa
-    const owned = user.ownedRewards.some(r => r.rewardId.toString() === rewardId);
+    // Comparar tanto con rewardId como con el _id del subdocumento
+    const owned = user.ownedRewards.some(r => {
+      const rId = r.rewardId?.toString();
+      const subId = r._id?.toString();
+      return rId === rewardId || subId === rewardId;
+    });
+    
     if (!owned) {
+      console.log('❌ No posee recompensa. IDs en ownedRewards:', user.ownedRewards.map(r => ({
+        rewardId: r.rewardId?.toString(),
+        subDocId: r._id?.toString()
+      })));
       return res.status(403).json({ message: 'No posees esta recompensa' });
     }
     
-    let reward = await RewardItem.findById(rewardId);
+    // Si el rewardId coincide con un subdocumento _id, buscar el rewardId real
+    let actualRewardId = rewardId;
+    const matchedEntry = user.ownedRewards.find(r => {
+      return r.rewardId?.toString() === rewardId || r._id?.toString() === rewardId;
+    });
+    if (matchedEntry) {
+      actualRewardId = matchedEntry.rewardId?.toString();
+    }
+    
+    let reward = await RewardItem.findById(actualRewardId);
     
     // Si el RewardItem no existe en la BD (fue eliminado por re-seed), intentar recrearlo
     if (!reward) {
