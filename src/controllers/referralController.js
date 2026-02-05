@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Referral = require('../models/Referral');
 const RewardItem = require('../models/RewardItem');
+const ShopItem = require('../models/ShopItem');
 const rewardsData = require('../data/rewards-data');
 const crypto = require('crypto');
 
@@ -323,60 +324,89 @@ exports.equipReward = async (req, res) => {
     const userId = req.user.userId;
     
     console.log('🎯 EquipReward - RewardId:', rewardId);
-    console.log('🎯 EquipReward - UserId:', userId);
     
     const user = await User.findById(userId);
     if (!user) {
-      console.log('❌ Usuario no encontrado:', userId);
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
-    
-    console.log('✅ Usuario encontrado:', user.username);
-    console.log('📦 Recompensas del usuario:', user.ownedRewards.map(r => ({
-      rewardId: r.rewardId.toString(),
-      purchasedAt: r.purchasedAt
-    })));
-    
-    const reward = await RewardItem.findById(rewardId);
-    if (!reward) {
-      console.log('❌ Recompensa no encontrada con ID:', rewardId);
-      
-      // Listar todas las recompensas disponibles para debugging
-      const allRewards = await RewardItem.find({});
-      console.log('📋 Recompensas disponibles en BD:', allRewards.map(r => ({
-        _id: r._id.toString(),
-        name: r.name,
-        type: r.type,
-        isActive: r.isActive
-      })));
-      
-      return res.status(404).json({ 
-        message: 'Recompensa no encontrada',
-        requestedId: rewardId,
-        availableRewards: allRewards.map(r => r._id.toString())
-      });
-    }
-    
-    console.log('✅ Recompensa encontrada:', reward.name);
     
     // Verificar que el usuario posee la recompensa
     const owned = user.ownedRewards.some(r => r.rewardId.toString() === rewardId);
     if (!owned) {
-      console.log('❌ Usuario no posee esta recompensa. Recompensas propias:', user.ownedRewards.map(r => r.rewardId.toString()));
       return res.status(403).json({ message: 'No posees esta recompensa' });
     }
     
-    console.log('✅ Usuario posee la recompensa');
+    let reward = await RewardItem.findById(rewardId);
+    
+    // Si el RewardItem no existe en la BD (fue eliminado por re-seed), intentar recrearlo
+    if (!reward) {
+      console.log('⚠️ RewardItem no encontrado, intentando recrear desde ShopItem...');
+      
+      // Buscar en ShopItems si hay alguno que coincida
+      const userPopulated = await User.findById(userId).populate('ownedRewards.rewardId');
+      const ownedEntry = userPopulated.ownedRewards.find(r => r.rewardId === null && r._id);
+      
+      // Intentar buscar por todos los ShopItems y recrear los RewardItems faltantes
+      const shopItems = await ShopItem.find({ isAvailable: true });
+      
+      for (const shopItem of shopItems) {
+        const existingReward = await RewardItem.findOne({
+          name: shopItem.name,
+          type: shopItem.type,
+          content: shopItem.content
+        });
+        
+        if (!existingReward) {
+          // Crear el RewardItem faltante
+          const newReward = new RewardItem({
+            name: shopItem.name,
+            description: shopItem.description,
+            type: shopItem.type,
+            content: shopItem.content,
+            rarity: shopItem.rarity,
+            iconHtml: shopItem.icon,
+            cost: shopItem.price || 0,
+            isActive: true
+          });
+          await newReward.save();
+          console.log(`✅ RewardItem recreado: ${newReward.name} (${newReward._id})`);
+        }
+      }
+      
+      // Intentar encontrar el reward de nuevo (puede que el ID original ya no coincida)
+      reward = await RewardItem.findById(rewardId);
+      
+      if (!reward) {
+        // El RewardItem original fue eliminado y recreado con un nuevo ID
+        // Necesitamos actualizar el ownedRewards del usuario
+        console.log('⚠️ RewardItem original no recuperable. Buscando coincidencia por datos...');
+        
+        // Poblar para ver qué datos tenía
+        const allRewards = await RewardItem.find({});
+        
+        return res.status(404).json({ 
+          message: 'Recompensa no encontrada. Los items de la tienda han sido regenerados. Por favor recarga la página.',
+          hint: 'reload'
+        });
+      }
+    }
     
     // Equipar la recompensa según su tipo
     user.activeRewards[reward.type] = reward._id;
     await user.save();
     
-    console.log('✅ Recompensa equipada exitosamente');
+    // Poblar activeRewards para devolver datos completos
+    const updatedUser = await User.findById(userId)
+      .populate('activeRewards.emoji')
+      .populate('activeRewards.title')
+      .populate('activeRewards.theme')
+      .populate('activeRewards.frame');
+    
+    console.log('✅ Recompensa equipada:', reward.name);
     
     res.json({
       message: 'Recompensa equipada exitosamente',
-      activeRewards: user.activeRewards
+      activeRewards: updatedUser.activeRewards
     });
   } catch (err) {
     console.error('❌ Error equipping reward:', err);
@@ -409,6 +439,105 @@ exports.unequipReward = async (req, res) => {
   } catch (err) {
     console.error('Error unequipping reward:', err);
     res.status(500).json({ message: 'Error al desequipar recompensa', error: err.message });
+  }
+};
+
+// Reparar recompensas huérfanas del usuario (ownedRewards que apuntan a RewardItems eliminados)
+exports.repairUserRewards = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // 1. Asegurar que todos los ShopItems tengan su RewardItem correspondiente
+    const shopItems = await ShopItem.find({ isAvailable: true });
+    const shopRewardMap = new Map(); // shopItem.name+type+content -> RewardItem._id
+
+    for (const shopItem of shopItems) {
+      let existing = await RewardItem.findOne({
+        name: shopItem.name,
+        type: shopItem.type,
+        content: shopItem.content
+      });
+      if (!existing) {
+        existing = new RewardItem({
+          name: shopItem.name,
+          description: shopItem.description,
+          type: shopItem.type,
+          content: shopItem.content,
+          rarity: shopItem.rarity,
+          iconHtml: shopItem.icon,
+          cost: shopItem.price || 0,
+          isActive: true
+        });
+        await existing.save();
+        console.log(`✅ RewardItem recreado desde ShopItem: ${existing.name} (${existing._id})`);
+      }
+      shopRewardMap.set(`${shopItem.name}|${shopItem.type}|${shopItem.content}`, existing._id.toString());
+    }
+
+    // 2. Verificar cada ownedReward del usuario y reparar huérfanos
+    let repaired = 0;
+    let removed = 0;
+    const validRewardIds = new Set();
+    const newOwnedRewards = [];
+
+    for (const entry of user.ownedRewards) {
+      const exists = await RewardItem.findById(entry.rewardId);
+      if (exists) {
+        newOwnedRewards.push(entry);
+        validRewardIds.add(exists._id.toString());
+      } else {
+        // Huérfano: intentar encontrar un RewardItem equivalente que no esté ya asignado
+        let matched = false;
+        for (const [key, rewardId] of shopRewardMap.entries()) {
+          if (!validRewardIds.has(rewardId)) {
+            // Verificar que este RewardItem no esté ya en los ownedRewards válidos
+            const alreadyOwned = newOwnedRewards.some(r => r.rewardId.toString() === rewardId);
+            if (!alreadyOwned) {
+              // Reasignar el ownedReward huérfano al nuevo RewardItem
+              entry.rewardId = rewardId;
+              newOwnedRewards.push(entry);
+              validRewardIds.add(rewardId);
+              repaired++;
+              matched = true;
+              console.log(`🔧 ownedReward reparado: viejo ID -> nuevo ${rewardId}`);
+              break;
+            }
+          }
+        }
+        if (!matched) {
+          console.log(`🗑️ Eliminando ownedReward huérfano sin coincidencia: ${entry.rewardId}`);
+          removed++;
+        }
+      }
+    }
+
+    user.ownedRewards = newOwnedRewards;
+    await user.save();
+
+    // 3. Devolver estado actualizado
+    const updatedUser = await User.findById(userId)
+      .populate('ownedRewards.rewardId')
+      .populate('activeRewards.emoji')
+      .populate('activeRewards.title')
+      .populate('activeRewards.theme')
+      .populate('activeRewards.frame');
+
+    console.log(`🔧 Reparación completada: ${repaired} reparados, ${removed} eliminados`);
+
+    res.json({
+      message: `Reparación completada: ${repaired} reparados, ${removed} eliminados`,
+      repaired,
+      removed,
+      ownedRewards: updatedUser.ownedRewards,
+      activeRewards: updatedUser.activeRewards
+    });
+  } catch (err) {
+    console.error('❌ Error reparando recompensas:', err);
+    res.status(500).json({ message: 'Error al reparar recompensas', error: err.message });
   }
 };
 

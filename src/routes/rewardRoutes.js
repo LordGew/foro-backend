@@ -11,6 +11,9 @@ router.get('/my-rewards', authMiddleware, referralController.getMyRewards);
 // Limpiar recompensas inválidas del usuario
 router.post('/cleanup-invalid', authMiddleware, referralController.cleanupInvalidRewards);
 
+// Reparar recompensas huérfanas (RewardItems eliminados)
+router.post('/repair', authMiddleware, referralController.repairUserRewards);
+
 // Debug: Listar todas las recompensas (incluyendo inactivas)
 router.get('/debug/all-rewards', authMiddleware, referralController.debugGetAllRewards);
 
