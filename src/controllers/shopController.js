@@ -117,7 +117,7 @@ exports.purchaseShopItem = async (req, res) => {
         type: shopItem.type,
         content: shopItem.content,
         rarity: shopItem.rarity,
-        icon: shopItem.icon
+        iconHtml: shopItem.icon
       });
       await rewardItem.save();
     }
