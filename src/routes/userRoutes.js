@@ -76,9 +76,6 @@ router.put('/user/:id/mute', authMiddleware, rbacMiddleware('Admin'), muteUser);
 router.put('/user/:id/unmute', authMiddleware, rbacMiddleware('Admin'), unmuteUser);  // REMOVIDO: csrfProtection
 router.put('/user/:id/unblock', authMiddleware, unblockUser);  // REMOVIDO: csrfProtection
 
-// Ruta de usuario por ID (al final, lectura)
-router.get('/:id', authMiddleware, getUserById);
-
 // Rutas VIP (con auth - REMOVIDO: csrfProtection)
 router.post('/activate-vip', authMiddleware, activateVip);  // REMOVIDO: csrfProtection
 router.post('/deactivate-vip', authMiddleware, deactivateVip);  // REMOVIDO: csrfProtection
@@ -147,5 +144,8 @@ router.put('/roleplay-intro', authMiddleware, updateRoleplayIntro);
 // Rutas para equipar/desequipar insignias
 router.put('/equip-badge', authMiddleware, equipBadge);
 router.put('/unequip-badge', authMiddleware, unequipBadge);
+
+// Ruta de usuario por ID (DEBE ser la última ruta GET para no capturar rutas nombradas)
+router.get('/:id', authMiddleware, getUserById);
 
 module.exports = router;
