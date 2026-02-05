@@ -3,9 +3,13 @@ const ChatMessage = require('../models/ChatMessage');
 const Report = require('../models/Report');
 const ModerationAction = require('../models/ModerationAction');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+
+// Helper: convert userId string to ObjectId for MongoDB queries
+const toObjectId = (id) => new mongoose.Types.ObjectId(id);
 
 // Configuración de multer para archivos
 const storage = multer.diskStorage({
@@ -47,13 +51,13 @@ class ChatController {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       
-      const chats = await ChatRoom.getUserChats(req.user._id, page, limit);
+      const chats = await ChatRoom.getUserChats(req.user.userId, page, limit);
       
       // Para cada chat, obtener no leídos
       const chatsWithUnread = await Promise.all(chats.map(async (chat) => {
         const unreadCount = await ChatMessage.countDocuments({
           chatRoom: chat._id,
-          sender: { $ne: req.user._id },
+          sender: { $ne: req.user.userId },
           readAt: null,
           isDeleted: false
         });
@@ -87,7 +91,7 @@ class ChatController {
     try {
       const { userId } = req.params;
       
-      if (userId === req.user._id.toString()) {
+      if (userId === req.user.userId.toString()) {
         return res.status(400).json({
           success: false,
           message: 'No puedes crear un chat contigo mismo'
@@ -104,17 +108,17 @@ class ChatController {
       }
       
       // Buscar chat privado existente
-      let chatRoom = await ChatRoom.findPrivateChat(req.user._id, userId);
+      let chatRoom = await ChatRoom.findPrivateChat(req.user.userId, userId);
       
       if (!chatRoom) {
         // Crear nuevo chat privado
         chatRoom = new ChatRoom({
           type: 'private',
           participants: [
-            { user: req.user._id },
+            { user: req.user.userId },
             { user: userId }
           ],
-          createdBy: req.user._id
+          createdBy: req.user.userId
         });
         
         await chatRoom.save();
@@ -144,7 +148,7 @@ class ChatController {
       // Verificar que el usuario es participante del chat
       const chatRoom = await ChatRoom.findOne({
         _id: chatId,
-        'participants.user': req.user._id,
+        'participants.user': req.user.userId,
         isActive: true
       });
       
@@ -165,7 +169,7 @@ class ChatController {
       .limit(limit);
       
       // Marcar mensajes como leídos
-      await chatRoom.markAsRead(req.user._id);
+      await chatRoom.markAsRead(req.user.userId);
       
       res.json({
         success: true,
@@ -208,7 +212,7 @@ class ChatController {
       // Verificar acceso al chat
       const chatRoom = await ChatRoom.findOne({
         _id: chatId,
-        'participants.user': req.user._id,
+        'participants.user': req.user.userId,
         isActive: true
       }).populate('participants.user');
       
@@ -220,7 +224,7 @@ class ChatController {
       }
       
       // Verificar si el usuario está muteado
-      const participant = chatRoom.participants.find(p => p.user._id.toString() === req.user._id.toString());
+      const participant = chatRoom.participants.find(p => p.user._id.toString() === req.user.userId.toString());
       if (participant.isMuted && participant.mutedUntil && participant.mutedUntil > new Date()) {
         return res.status(403).json({
           success: false,
@@ -229,7 +233,7 @@ class ChatController {
       }
       
       // Verificar si el usuario tiene suspensiones activas
-      const activeActions = await ModerationAction.getActiveActions(req.user._id);
+      const activeActions = await ModerationAction.getActiveActions(req.user.userId);
       const hasBan = activeActions.some(action => action.actionType === 'ban');
       const hasSuspension = activeActions.some(action => action.actionType === 'suspend');
       
@@ -250,8 +254,8 @@ class ChatController {
       // Crear mensaje
       const message = new ChatMessage({
         chatRoom: chatId,
-        sender: req.user._id,
-        receiver: chatRoom.participants.find(p => p.user._id.toString() !== req.user._id.toString()).user._id,
+        sender: req.user.userId,
+        receiver: chatRoom.participants.find(p => p.user._id.toString() !== req.user.userId.toString()).user._id,
         content: content.trim(),
         messageType
       });
@@ -318,7 +322,7 @@ class ChatController {
         // Verificar acceso al chat
         const chatRoom = await ChatRoom.findOne({
           _id: chatId,
-          'participants.user': req.user._id,
+          'participants.user': req.user.userId,
           isActive: true
         });
         
@@ -334,8 +338,8 @@ class ChatController {
         // Crear mensaje de archivo
         const message = new ChatMessage({
           chatRoom: chatId,
-          sender: req.user._id,
-          receiver: chatRoom.participants.find(p => p.user._id.toString() !== req.user._id.toString()).user._id,
+          sender: req.user.userId,
+          receiver: chatRoom.participants.find(p => p.user._id.toString() !== req.user.userId.toString()).user._id,
           content: `📎 ${file.originalname}`,
           messageType: file.mimetype.startsWith('image/') ? 'image' : 'file',
           fileUrl: `/uploads/chat/${file.filename}`
@@ -397,7 +401,7 @@ class ChatController {
         });
       }
       
-      if (message.sender.toString() !== req.user._id.toString()) {
+      if (message.sender.toString() !== req.user.userId.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Solo puedes editar tus propios mensajes'
@@ -464,7 +468,7 @@ class ChatController {
       }
       
       // Verificar permisos (propietario del mensaje o admin)
-      const canDelete = message.sender.toString() === req.user._id.toString() || 
+      const canDelete = message.sender.toString() === req.user.userId.toString() || 
                        ['admin', 'moderator'].includes(req.user.role);
       
       if (!canDelete) {
@@ -478,7 +482,7 @@ class ChatController {
       message.deletedAt = new Date();
       
       if (req.user.role !== 'user') {
-        message.moderatedBy = req.user._id;
+        message.moderatedBy = req.user.userId;
         message.moderatedAt = new Date();
         message.moderationReason = 'Eliminado por moderador';
       }
@@ -529,7 +533,7 @@ class ChatController {
       
       // Verificar que no haya reportado ya este mensaje
       const existingReport = await Report.findOne({
-        reporter: req.user._id,
+        reporter: req.user.userId,
         targetType: 'message',
         targetId: messageId,
         status: { $in: ['pending', 'under_review'] }
@@ -544,7 +548,7 @@ class ChatController {
       
       // Crear reporte
       const report = new Report({
-        reporter: req.user._id,
+        reporter: req.user.userId,
         targetType: 'message',
         targetId: messageId,
         category,
@@ -585,7 +589,7 @@ class ChatController {
       
       const chatRoom = await ChatRoom.findOne({
         _id: chatId,
-        'participants.user': req.user._id,
+        'participants.user': req.user.userId,
         isActive: true
       });
       
@@ -596,13 +600,13 @@ class ChatController {
         });
       }
       
-      await chatRoom.markAsRead(req.user._id);
+      await chatRoom.markAsRead(req.user.userId);
       
       // Marcar mensajes individuales como leídos
       await ChatMessage.updateMany(
         {
           chatRoom: chatId,
-          receiver: req.user._id,
+          receiver: req.user.userId,
           readAt: null
         },
         {
@@ -613,7 +617,7 @@ class ChatController {
       // Emitir estado de lectura vía Socket.IO
       if (global.io) {
         global.io.emit(`chat:${chatId}:read`, {
-          userId: req.user._id,
+          userId: req.user.userId,
           readAt: new Date()
         });
       }
@@ -634,7 +638,7 @@ class ChatController {
   // Obtener estadísticas del chat
   async getChatStats(req, res) {
     try {
-      const userId = req.user._id;
+      const userId = toObjectId(req.user.userId);
       
       const stats = await ChatRoom.aggregate([
         { $match: { 'participants.user': userId, isActive: true } },
@@ -720,7 +724,7 @@ class ChatController {
       const moderationAction = new ModerationAction({
         actionType: 'mute',
         targetUser: userId,
-        moderator: req.user._id,
+        moderator: req.user.userId,
         reason: 'Silenciado en chat',
         chatRoom: chatId,
         duration: muteDuration,
@@ -832,7 +836,7 @@ class ChatController {
       const moderationAction = new ModerationAction({
         actionType: 'ban',
         targetUser: userId,
-        moderator: req.user._id,
+        moderator: req.user.userId,
         reason: reason || 'Baneado del chat',
         chatRoom: chatId,
         duration: banDuration,
@@ -891,7 +895,7 @@ class ChatController {
         {
           isActive: false,
           resolvedAt: new Date(),
-          resolvedBy: req.user._id
+          resolvedBy: req.user.userId
         }
       );
       
