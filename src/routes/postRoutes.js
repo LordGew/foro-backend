@@ -17,6 +17,27 @@ const {
   deletePostByAdmin
 } = require('../controllers/postController');
 
+// Upload inline image for editor (returns Cloudinary URL)
+const multerInline = require('multer');
+const cloudinaryInline = require('cloudinary').v2;
+const { CloudinaryStorage: CStorageInline } = require('multer-storage-cloudinary');
+const inlineStorage = new CStorageInline({
+  cloudinary: cloudinaryInline,
+  params: {
+    folder: 'wow-forum/inline',
+    allowed_formats: ['jpeg', 'png', 'jpg', 'gif', 'webp'],
+    resource_type: 'image',
+    transformation: [{ width: 800, crop: 'limit', quality: 'auto' }]
+  }
+});
+const uploadInline = multerInline({ storage: inlineStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+router.post('/upload-inline-image', authMiddleware, uploadInline.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No image provided' });
+  }
+  res.json({ url: req.file.path });
+});
+
 // Crear post (upload primero, luego auth)
 router.post('/', uploadSingleImage, authMiddleware, createPost);
 
