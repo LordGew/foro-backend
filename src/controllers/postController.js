@@ -28,7 +28,6 @@ const addPostXp = async (userId) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) return;
     await User.findByIdAndUpdate(userId, { $inc: { xp: 10 } }, { runValidators: false });  // FIX: Atómico, sin save()
-    console.log(`+10 XP a usuario por crear post (ID: ${userId})`);
   } catch (err) {
     console.error('Error al añadir XP por post:', err.message);
   }
@@ -39,7 +38,6 @@ const addLikeXp = async (userId) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) return;
     await User.findByIdAndUpdate(userId, { $inc: { xp: 2 } }, { runValidators: false });  // FIX: Atómico
-    console.log(`+2 XP a usuario por recibir like (ID: ${userId})`);
   } catch (err) {
     console.error('Error al añadir XP por like:', err.message);
   }
@@ -50,7 +48,6 @@ const removeLikeXp = async (userId) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) return;
     await User.findByIdAndUpdate(userId, { $inc: { xp: -1 } }, { runValidators: false });  // FIX: Atómico, clamp en schema
-    console.log(`-1 XP a usuario por quitar like (ID: ${userId})`);
   } catch (err) {
     console.error('Error al quitar XP por like:', err.message);
   }
@@ -61,7 +58,6 @@ const addDislikeXp = async (userId) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) return;
     await User.findByIdAndUpdate(userId, { $inc: { xp: -1 } }, { runValidators: false });  // FIX: Atómico
-    console.log(`-1 XP a usuario por recibir dislike (ID: ${userId})`);
   } catch (err) {
     console.error('Error al añadir XP por dislike:', err.message);
   }
@@ -72,7 +68,6 @@ const removeDislikeXp = async (userId) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) return;
     await User.findByIdAndUpdate(userId, { $inc: { xp: 1 } }, { runValidators: false });  // FIX: Atómico
-    console.log(`+1 XP a usuario por quitar dislike (ID: ${userId})`);
   } catch (err) {
     console.error('Error al quitar XP por dislike:', err.message);
   }
@@ -129,9 +124,6 @@ const createPost = async (req, res) => {
       },
       { runValidators: true }  // Valida después de update
     );
-
-    console.log(`Post creado y counters actualizados para usuario ${req.user.userId}`);
-
     // Verificar logros especiales basados en hora de publicación
     const postHour = new Date().getHours();
     if (postHour < 6) {
@@ -145,11 +137,8 @@ const createPost = async (req, res) => {
 
     // Actualizar progreso de misiones
     const missionController = require('./missionController');
-    console.log(`🎯 Actualizando misión de crear post para usuario: ${req.user.userId}`);
     await missionController.updateMissionProgress(req.user.userId, 'create_post', 1);
     await missionController.updateMissionProgress(req.user.userId, 'earn_xp', 10);
-    console.log(`✅ Progreso de misiones actualizado para crear post`);
-
     res.status(201).json(post);
   } catch (err) {
     console.error('Error al crear post:', err);
@@ -188,7 +177,6 @@ const getPosts = async (req, res) => {
     // NUEVO: Filtrar por juego si se proporciona
     let posts;
     if (game) {
-      console.log('Filtrando posts por juego:', game);
       // Primero obtener las categorías del juego
       const categories = await Category.find({ game: game }).select('_id');
       const categoryIds = categories.map(cat => cat._id);
@@ -198,7 +186,6 @@ const getPosts = async (req, res) => {
         query.category = { $in: categoryIds };
       } else {
         // Si no hay categorías para este juego, retornar array vacío
-        console.log('No hay categorías para este juego');
         return res.json([]);
       }
     }
@@ -208,9 +195,6 @@ const getPosts = async (req, res) => {
       .populate('category', 'name')
       .sort({ createdAt: -1 })
       .limit(20);
-      
-    console.log(`Posts encontrados: ${posts.length}`);
-      
     // FIX: Filtrar posts VIP solo para autorizados (Admin, GameMaster o VIP)
     const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
     const filteredPosts = posts.filter(post => 
@@ -247,7 +231,6 @@ const updatePost = async (req, res) => {
         const publicId = getPublicIdFromUrl(oldUrl);
         if (publicId) {
           await cloudinary.uploader.destroy(publicId);
-          console.log(`Imagen antigua eliminada de Cloudinary: ${publicId}`);
         }
       }
     }
@@ -299,8 +282,6 @@ const getPublicIdFromUrl = (url) => {
 
 const likePost = async (req, res) => {
   try {
-    console.log('Like request - User:', req.user ? { userId: req.user.userId, role: req.user.role, vip: req.user.vip } : 'undefined', 'Post ID:', req.params.id);
-
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ message: 'Usuario no autenticado', error: 'no_user' });
     }
@@ -330,8 +311,6 @@ const likePost = async (req, res) => {
     }
 
     await post.save();
-    console.log('Post saved after like, likes count:', post.likes.length);
-
     const updatedPost = await Post.findById(req.params.id)
       .populate('author', 'username profileImage')
       .populate('category', 'name')
@@ -354,8 +333,6 @@ const likePost = async (req, res) => {
 
 const dislikePost = async (req, res) => {
   try {
-    console.log('Dislike request - User:', req.user ? { userId: req.user.userId, role: req.user.role, vip: req.user.vip } : 'undefined', 'Post ID:', req.params.id);
-
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ message: 'Usuario no autenticado', error: 'no_user' });
     }
@@ -385,9 +362,6 @@ const dislikePost = async (req, res) => {
     }
 
     await post.save();
-    
-    console.log('Post saved after dislike, dislikes count:', post.dislikes.length);
-
     const updatedPost = await Post.findById(req.params.id)
       .populate('author', 'username profileImage')
       .populate('category', 'name')
@@ -415,7 +389,6 @@ const getPostsCount = async (req, res) => {
     
     // Filtrar por juego si se proporciona
     if (game) {
-      console.log('Contando posts por juego:', game);
       const categories = await Category.find({ game: game }).select('_id');
       const categoryIds = categories.map(cat => cat._id);
       
@@ -428,7 +401,6 @@ const getPostsCount = async (req, res) => {
     }
     
     const count = await Post.countDocuments(query);
-    console.log(`Total de posts: ${count}`);
     res.json({ count });
   } catch (err) {
     console.error('Error al contar posts:', err);
@@ -506,24 +478,16 @@ const getPostById = async (req, res) => {
 const getPostsByCategoryParam = async (req, res) => {
   try {
     const param = req.params.id || req.params.param;
-    console.log('Procesando posts por categoría:', param);
-
     let category;
     if (mongoose.Types.ObjectId.isValid(param)) {
-      console.log('Buscando categoría por ID:', param);
       category = await Category.findById(param);
     } else {
-      console.log('Buscando categoría por slug:', param);
       category = await Category.findOne({ slug: param });
     }
 
     if (!category) {
-      console.log('Categoría no encontrada para param:', param);
       return res.status(404).json({ message: 'Categoría no encontrada' });
     }
-
-    console.log('Categoría encontrada:', category.name, 'ID:', category._id);
-
     const posts = await Post.find({ category: category._id })
       .populate([
         { 
@@ -553,20 +517,9 @@ const getPostsByCategoryParam = async (req, res) => {
       .sort({ createdAt: -1 });
 
     const authorized = req.user && (req.user.role === 'Admin' || req.user.role === 'GameMaster' || req.user.vip);
-    console.log(' Verificación acceso VIP (categoría):', {
-      userId: req.user?.userId,
-      role: req.user?.role,
-      vip: req.user?.vip,
-      categoryName: category.name,
-      authorized: authorized
-    });
     if (category.name.toUpperCase() === 'VIP' && !authorized) {
-      console.log(' ACCESO DENEGADO - Usuario no autorizado para categoría VIP');
       return res.status(403).json({ message: 'Acceso denegado a contenido VIP' });
     }
-    console.log(' Acceso VIP a categoría concedido');
-
-    console.log(`Posts encontrados: ${posts.length} para categoría ${category.name}`);
     res.json(posts);
   } catch (err) {
     console.error('Error al obtener posts por categoría:', err);

@@ -79,9 +79,6 @@ const seedVipRewards = async (req, res) => {
       await vipReward.save();
       created++;
     }
-
-    console.log(`👑 VIP Rewards seed: ${created} created, ${skipped} skipped`);
-    
     if (res) {
       return res.json({ message: `VIP Rewards: ${created} creadas, ${skipped} ya existían`, created, skipped });
     }
@@ -305,7 +302,6 @@ const autoUnlockVipRewards = async (userId) => {
 
     if (unlocked.length > 0) {
       await user.save();
-      console.log(`👑 Auto-unlocked ${unlocked.length} VIP rewards for ${user.username}:`, unlocked.map(u => u.name));
     }
 
     return { unlocked };

@@ -15,14 +15,12 @@ const login = async (req, res) => {
     // Buscar usuario
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('Usuario no encontrado:', email);
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
     // Verificar contraseña usando el método del modelo
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      console.log('Contraseña incorrecta para:', email);
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
@@ -61,7 +59,6 @@ const login = async (req, res) => {
       error: err.message 
     });
   }
-  console.log('Token generado:', token);
 };
 
 module.exports = { login };

@@ -44,9 +44,6 @@ const refreshToken = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    
-    console.log(`🔄 Token refrescado para usuario ${user.username} (${user.role})`);
-    
     res.json({
       token,
       user: {
@@ -152,8 +149,6 @@ const register = async (req, res) => {
       // Actualizar contador del referidor (los 100 puntos se darán cuando cumpla requisitos)
       referrer.totalReferrals += 1;
       await referrer.save();
-      
-      console.log(`✅ Referido creado: ${username} fue referido por ${referrer.username}. Nuevo usuario recibió 50 puntos. Referidor recibirá 100 puntos cuando se cumplan requisitos.`);
     }
     
     res.status(201).json({ 
@@ -178,13 +173,10 @@ const login = async (req, res) => {
     
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('Usuario no encontrado para email:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     
     const isMatch = await user.matchPassword(password);
-    console.log('Password comparison result:', isMatch);
-    
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -195,10 +187,7 @@ const login = async (req, res) => {
 
     // Actualizar progreso de misión de login diario
     const missionController = require('./missionController');
-    console.log(`🎯 Actualizando misión de login para usuario: ${user.username} (${user._id})`);
     await missionController.updateMissionProgress(user._id, 'daily_login', 1);
-    console.log(`✅ Progreso de misión de login actualizado para: ${user.username}`);
-
     const token = jwt.sign({ 
       userId: user._id.toString(), 
       role: user.role 
@@ -447,8 +436,6 @@ const getUserById = async (req, res) => {
 // Esta función obtiene la lista de usuarios online, incluyendo el usuario actual.
 const getOnlineUsers = async (req, res) => {
   try {
-    console.log('Solicitud recibida para obtener usuarios online');
-    
     if (!req.user || !req.user.userId) {
       console.error('req.user o req.user.userId es undefined:', req.user);
       return res.status(401).json({ 
@@ -464,9 +451,6 @@ const getOnlineUsers = async (req, res) => {
     }
 
     const users = await User.find({ isOnline: true }).select('username _id profileImage role');
-    
-    console.log(`Encontrados ${users.length} usuarios online`);
-    
     const currentUserId = new mongoose.Types.ObjectId(req.user.userId);
     const currentUserIndex = users.findIndex(u => u._id.toString() === currentUserId.toString());
     
@@ -515,14 +499,11 @@ const updatePassword = async (req, res) => {
     const isMatch = await user.matchPassword(currentPassword);
     
     if (!isMatch) {
-      console.log('Contraseña actual incorrecta para usuario:', user.email);
       return res.status(401).json({ message: 'Contraseña actual incorrecta' });
     }
     
     user.password = newPassword;
     await user.save();
-    
-    console.log('Contraseña actualizada para usuario:', user.email);
     res.json({ message: 'Contraseña actualizada correctamente' });
   } catch (err) {
     console.error('Error al actualizar contraseña:', err);
@@ -558,8 +539,6 @@ const updateProfileImage = async (req, res) => {
     // Guardar la URL completa de Cloudinary
     user.profileImage = result.secure_url;
     await user.save();
-
-    console.log('Imagen de perfil actualizada:', result.secure_url);
     res.json({ 
       message: 'Foto de perfil actualizada',
       profileImage: result.secure_url // Devolver URL completa
@@ -822,12 +801,10 @@ const handleStripeWebhook = async (req, res) => {
   }
 
   if (event.type === 'checkout.session.completed') {
-    console.log('✅ Pago completado vía webhook:', event.data.object.id);
     const session = event.data.object;
     
     try {
       await completeVipTransaction(session.id, session.payment_intent);
-      console.log('✅ Transacción VIP completada exitosamente');
     } catch (error) {
       console.error('❌ Error al completar transacción VIP:', error);
     }
@@ -942,18 +919,14 @@ const cleanProfileImages = async () => {
           const cloudinaryUrl = user.profileImage.match(/https:\/\/res\.cloudinary\.com\/.*/)?.[0];
           user.profileImage = cloudinaryUrl || '';
           await user.save();
-          console.log(`✅ profileImage corregido para usuario ${user._id}: ${user.profileImage}`);
           cleanedCount++;
         } else {
-          console.warn(`Usuario ${user._id} tiene profileImage inválido: ${user.profileImage}`);
           user.profileImage = '';
           await user.save();
-          console.log(`✅ profileImage reseteado para usuario ${user._id}`);
           cleanedCount++;
         }
       }
     }
-    console.log(`✅ Limpieza de profileImage completada. Usuarios corregidos: ${cleanedCount}`);
   } catch (err) {
     console.error('❌ Error en limpieza de profileImage:', err);
   }
@@ -982,8 +955,6 @@ const updateRoleplayIntro = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
-
-    console.log(`✅ Presentación RPG actualizada para ${user.username}: "${roleplayIntro}"`);
     res.json({ message: 'Presentación actualizada exitosamente', user });
   } catch (error) {
     console.error('Error al actualizar presentación RPG:', error);
@@ -1014,8 +985,6 @@ const equipBadge = async (req, res) => {
     // Equipar el badge
     user.equippedBadge = badgeId;
     await user.save();
-
-    console.log(`✅ Badge equipado para usuario ${user.username}: ${badgeId}`);
     res.json({ message: 'Badge equipado exitosamente', equippedBadge: badgeId });
   } catch (error) {
     console.error('Error al equipar badge:', error);
@@ -1036,8 +1005,6 @@ const unequipBadge = async (req, res) => {
     // Desequipar el badge
     user.equippedBadge = null;
     await user.save();
-
-    console.log(`✅ Badge desequipado para usuario ${user.username}`);
     res.json({ message: 'Badge desequipado exitosamente' });
   } catch (error) {
     console.error('Error al desequipar badge:', error);

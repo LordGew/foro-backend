@@ -97,7 +97,6 @@ exports.applyReferralCode = async (req, res) => {
     
     // VALIDACIÓN ANTI-FRAUDE: Verificar misma IP
     if (userIp && referrer.lastLoginIp && userIp === referrer.lastLoginIp) {
-      console.warn(`Intento de fraude detectado: Misma IP ${userIp} para referrer ${referrer._id} y referred ${userId}`);
       return res.status(400).json({ 
         message: 'No se puede validar el referido. Contacta con soporte si crees que es un error.',
         reason: 'fraud_detection'
@@ -423,16 +422,10 @@ exports.equipReward = async (req, res) => {
   try {
     const { rewardId } = req.params;
     const userId = req.user.userId;
-    
-    console.log('🎯 EquipReward - RewardId:', rewardId);
-    
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
-    
-    console.log('📦 ownedRewards del usuario:', user.ownedRewards.map(r => r.rewardId?.toString()));
-    
     // Verificar que el usuario posee la recompensa
     // Comparar tanto con rewardId como con el _id del subdocumento
     const owned = user.ownedRewards.some(r => {
@@ -442,10 +435,6 @@ exports.equipReward = async (req, res) => {
     });
     
     if (!owned) {
-      console.log('❌ No posee recompensa. IDs en ownedRewards:', user.ownedRewards.map(r => ({
-        rewardId: r.rewardId?.toString(),
-        subDocId: r._id?.toString()
-      })));
       return res.status(403).json({ message: 'No posees esta recompensa' });
     }
     
@@ -462,8 +451,6 @@ exports.equipReward = async (req, res) => {
     
     // Si el RewardItem no existe en la BD (fue eliminado por re-seed), intentar recrearlo
     if (!reward) {
-      console.log('⚠️ RewardItem no encontrado, intentando recrear desde ShopItem...');
-      
       // Buscar en ShopItems si hay alguno que coincida
       const userPopulated = await User.findById(userId).populate('ownedRewards.rewardId');
       const ownedEntry = userPopulated.ownedRewards.find(r => r.rewardId === null && r._id);
@@ -491,7 +478,6 @@ exports.equipReward = async (req, res) => {
             isActive: true
           });
           await newReward.save();
-          console.log(`✅ RewardItem recreado: ${newReward.name} (${newReward._id})`);
         }
       }
       
@@ -501,8 +487,6 @@ exports.equipReward = async (req, res) => {
       if (!reward) {
         // El RewardItem original fue eliminado y recreado con un nuevo ID
         // Necesitamos actualizar el ownedRewards del usuario
-        console.log('⚠️ RewardItem original no recuperable. Buscando coincidencia por datos...');
-        
         // Poblar para ver qué datos tenía
         const allRewards = await RewardItem.find({});
         
@@ -523,9 +507,6 @@ exports.equipReward = async (req, res) => {
       .populate('activeRewards.title')
       .populate('activeRewards.theme')
       .populate('activeRewards.frame');
-    
-    console.log('✅ Recompensa equipada:', reward.name);
-    
     res.json({
       message: 'Recompensa equipada exitosamente',
       activeRewards: updatedUser.activeRewards
@@ -595,7 +576,6 @@ exports.repairUserRewards = async (req, res) => {
           isActive: true
         });
         await existing.save();
-        console.log(`✅ RewardItem recreado desde ShopItem: ${existing.name} (${existing._id})`);
       }
       shopRewardMap.set(`${shopItem.name}|${shopItem.type}|${shopItem.content}`, existing._id.toString());
     }
@@ -625,13 +605,11 @@ exports.repairUserRewards = async (req, res) => {
               validRewardIds.add(rewardId);
               repaired++;
               matched = true;
-              console.log(`🔧 ownedReward reparado: viejo ID -> nuevo ${rewardId}`);
               break;
             }
           }
         }
         if (!matched) {
-          console.log(`🗑️ Eliminando ownedReward huérfano sin coincidencia: ${entry.rewardId}`);
           removed++;
         }
       }
@@ -647,9 +625,6 @@ exports.repairUserRewards = async (req, res) => {
       .populate('activeRewards.title')
       .populate('activeRewards.theme')
       .populate('activeRewards.frame');
-
-    console.log(`🔧 Reparación completada: ${repaired} reparados, ${removed} eliminados`);
-
     res.json({
       message: `Reparación completada: ${repaired} reparados, ${removed} eliminados`,
       repaired,
@@ -702,12 +677,8 @@ exports.createReward = async (req, res) => {
 // Admin: Forzar seed de recompensas - Limpia y regenera completamente
 exports.seedRewards = async (req, res) => {
   try {
-    console.log('🔄 INICIANDO REGENERACIÓN DE RECOMPENSAS...');
-    
     // 1. Limpiar recompensas existentes
     const deletedRewards = await RewardItem.deleteMany({});
-    console.log(`🗑️ ${deletedRewards.deletedCount} recompensas eliminadas`);
-    
     // 2. Limpiar referencias en usuarios
     const updatedUsers = await User.updateMany(
       {},
@@ -723,8 +694,6 @@ exports.seedRewards = async (req, res) => {
         }
       }
     );
-    console.log(`👥 ${updatedUsers.modifiedCount} usuarios limpiados`);
-    
     // 3. Crear recompensas directamente (sin usar seed externo)
     // URLs de Twemoji (Twitter Emoji) - CDN público y libre
     const twemojiBase = 'https://cdn.jsdelivr.net/gh/jdecked/twemoji@latest/assets/svg/';
@@ -764,8 +733,6 @@ exports.seedRewards = async (req, res) => {
     ];
     
     const createdRewards = await RewardItem.insertMany(defaultRewards);
-    console.log(`✅ ${createdRewards.length} recompensas creadas exitosamente`);
-    
     res.json({
       message: 'Recompensas regeneradas completamente',
       count: createdRewards.length,
@@ -895,16 +862,12 @@ exports.validatePendingReferrals = async (req, res) => {
             pointsEarned: referral.pointsAwarded
           });
         }
-        
-        console.log(`✅ Referido validado: ${referred.username} -> ${referrer.username} (+${referral.pointsAwarded} puntos)`);
       } else if (daysSinceRegistration >= 30) {
         // Si han pasado 30 días y no cumple requisitos, cancelar
         referral.status = 'cancelled';
         await referral.save();
         
         cancelledCount++;
-        
-        console.log(`❌ Referido cancelado por inactividad: ${referred.username} -> ${referrer.username}`);
       }
     }
     
@@ -914,9 +877,6 @@ exports.validatePendingReferrals = async (req, res) => {
       cancelled: cancelledCount,
       stillPending: pendingReferrals.length - validatedCount - cancelledCount
     };
-    
-    console.log('📊 Resultado de validación de referidos:', response);
-    
     if (res) {
       res.json(response);
     }
@@ -999,12 +959,8 @@ exports.checkReferralStatus = async (req, res) => {
 // Actualizar iconos de recompensas (solo Admin)
 exports.updateRewardIcons = async (req, res) => {
   try {
-    console.log('Updating reward icons...');
-    
     // Get all rewards from database
     const existingRewards = await RewardItem.find({});
-    console.log(`Found ${existingRewards.length} existing rewards`);
-    
     let updatedCount = 0;
     
     // Update each reward with iconUrl based on slug
@@ -1014,12 +970,8 @@ exports.updateRewardIcons = async (req, res) => {
         reward.iconUrl = dataReward.iconUrl;
         await reward.save();
         updatedCount++;
-        console.log(`Updated iconUrl for reward: ${reward.name} -> ${reward.iconUrl}`);
       }
     }
-    
-    console.log(`Reward icons update completed! Updated ${updatedCount} rewards.`);
-    
     res.json({
       message: 'Reward icons update completed',
       totalRewards: existingRewards.length,

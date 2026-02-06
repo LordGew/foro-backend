@@ -7,7 +7,6 @@ const missionController = require('../controllers/missionController');
 
 // Middleware para logging de requests
 router.use((req, res, next) => {
-  console.log(`🚀 [MISSION ROUTE] ${req.method} ${req.path} - Usuario: ${req.user?.userId || 'anonymous'}`);
   next();
 });
 

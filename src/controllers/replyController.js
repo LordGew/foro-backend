@@ -15,7 +15,6 @@ const addReplyXp = async (userId) => {
     await User.findByIdAndUpdate(userId, { 
       $inc: { xp: 5, replyCount: 1 }  // Asume +5 XP y +1 replyCount; ajusta si diferente
     }, { runValidators: false });  // FIX: Atómico, sin validación full
-    console.log(`+5 XP y +1 replyCount a usuario por respuesta (ID: ${userId})`);
   } catch (err) {
     console.error('Error al añadir XP por respuesta:', err.message);
   }
@@ -26,7 +25,6 @@ const addLikeXp = async (userId) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) return;
     await User.findByIdAndUpdate(userId, { $inc: { xp: 2 } }, { runValidators: false });  // FIX: Atómico
-    console.log(`+2 XP a usuario por like en respuesta (ID: ${userId})`);
   } catch (err) {
     console.error('Error al añadir XP por like en respuesta:', err.message);
   }
@@ -37,7 +35,6 @@ const removeLikeXp = async (userId) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) return;
     await User.findByIdAndUpdate(userId, { $inc: { xp: -1 } }, { runValidators: false });  // FIX: Atómico
-    console.log(`-1 XP a usuario por quitar like en respuesta (ID: ${userId})`);
   } catch (err) {
     console.error('Error al quitar XP por like en respuesta:', err.message);
   }
@@ -48,7 +45,6 @@ const addDislikeXp = async (userId) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) return;
     await User.findByIdAndUpdate(userId, { $inc: { xp: -1 } }, { runValidators: false });  // FIX: Atómico
-    console.log(`-1 XP a usuario por dislike en respuesta (ID: ${userId})`);
   } catch (err) {
     console.error('Error al añadir XP por dislike en respuesta:', err.message);
   }
@@ -59,7 +55,6 @@ const removeDislikeXp = async (userId) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) return;
     await User.findByIdAndUpdate(userId, { $inc: { xp: 1 } }, { runValidators: false });  // FIX: Atómico
-    console.log(`+1 XP a usuario por quitar dislike en respuesta (ID: ${userId})`);
   } catch (err) {
     console.error('Error al quitar XP por dislike en respuesta:', err.message);
   }

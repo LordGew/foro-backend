@@ -113,37 +113,14 @@ const DateUtils = {
   }
 };
 
-// Sistema de logging mejorado
+// Logger silenciado en producción (solo errores)
 const Logger = {
-  mission: (action, data) => {
-    console.log(`🎯 [MISIÓN] ${action}:`, {
-      timestamp: new Date().toISOString(),
-      ...data
-    });
-  },
-
-  progress: (action, data) => {
-    console.log(`📊 [PROGRESO] ${action}:`, {
-      timestamp: new Date().toISOString(),
-      ...data
-    });
-  },
-
+  mission: () => {},
+  progress: () => {},
   error: (action, error, data) => {
-    console.error(`❌ [ERROR] ${action}:`, {
-      timestamp: new Date().toISOString(),
-      error: error.message,
-      stack: error.stack,
-      ...data
-    });
+    console.error(`[ERROR] ${action}:`, error.message);
   },
-
-  warning: (action, data) => {
-    console.warn(`⚠️ [ADVERTENCIA] ${action}:`, {
-      timestamp: new Date().toISOString(),
-      ...data
-    });
-  }
+  warning: () => {}
 };
 
 // Validador de misiones

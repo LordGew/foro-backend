@@ -124,7 +124,6 @@ exports.getMyAchievements = async (req, res) => {
     
     // Si hay logros huérfanos, limpiarlos del usuario
     if (validAchievements.length < user.achievements.length) {
-      console.log(`🧹 Limpiando ${user.achievements.length - validAchievements.length} logros huérfanos del usuario ${user.username}`);
       user.achievements = validAchievements;
       await user.save();
     }
@@ -406,9 +405,6 @@ exports.resetUserAchievements = async (req, res) => {
     user.achievementPoints = 0;
     
     await user.save();
-
-    console.log(`🔄 Logros reseteados para usuario: ${user.username}`);
-    
     res.json({ 
       message: `Logros reseteados exitosamente para ${user.username}`,
       user: {
@@ -429,8 +425,6 @@ exports.resetUserAchievements = async (req, res) => {
 exports.runSeedAchievements = async (req, res) => {
   try {
     const seedAchievements = require('../scripts/seedAchievements');
-    
-    console.log('🌱 Ejecutando seed de logros manualmente...');
     const result = await seedAchievements();
     
     res.json({

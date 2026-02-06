@@ -27,11 +27,9 @@ const getCategories = async (req, res) => {
     const filter = {};
     if (game) {
       filter.game = game;
-      console.log(' Filtrando categorías por juego:', game);
     }
     
     const categories = await Category.find(filter).populate('game', 'name icon color');
-    console.log(` Categorías encontradas: ${categories.length}`);
     res.json(categories);
   } catch (err) {
     console.error('Error al obtener categorías:', err);
@@ -82,8 +80,6 @@ const deleteCategory = async (req, res) => {
 const getCategoryByParam = async (req, res) => {
   try {
     const param = req.params.param;
-    console.log('Procesando categoría por param:', param); // Depuración
-
     let category;
     if (mongoose.Types.ObjectId.isValid(param)) {
       // Si es un ID válido, buscar por ID

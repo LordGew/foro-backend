@@ -11,13 +11,8 @@ const createBanner = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: 'Se requiere una imagen' });
     }
-
-    console.log('Archivo subido a Cloudinary:', req.file);
-
     // Cloudinary devuelve la URL en req.file.path
     const image_url = req.file.path;
-    console.log('URL de Cloudinary:', image_url);
-
     const banner = new Banner({
       location,
       image_url,
@@ -30,7 +25,6 @@ const createBanner = async (req, res) => {
     });
 
     await banner.save();
-    console.log('Banner guardado con Cloudinary:', banner);
     res.status(201).json(banner);
   } catch (error) {
     console.error('Error creando banner:', error);
@@ -47,8 +41,6 @@ const updateBanner = async (req, res) => {
     // Si se subió una nueva imagen, usar la URL de Cloudinary
     if (req.file) {
       updateData.image_url = req.file.path;
-      console.log('Nueva imagen de Cloudinary:', updateData.image_url);
-      
       // NOTA: Con Cloudinary no necesitas eliminar la imagen anterior manualmente
       // Cloudinary maneja el almacenamiento automáticamente
     }

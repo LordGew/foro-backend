@@ -145,9 +145,6 @@ const applyManualReferral = async (req, res) => {
     
     referrer.totalReferrals += 1;
     await referrer.save();
-    
-    console.log(`✅ Referido manual aplicado: ${referredUsername} -> ${referrerUsername}`);
-    
     res.json({
       success: true,
       message: `Referido aplicado exitosamente. ${referredUsername} recibió 50 puntos. ${referrerUsername} recibirá 100 puntos cuando se cumplan requisitos.`,
@@ -171,8 +168,6 @@ const applyManualReferral = async (req, res) => {
 
 const fixCategoriesGame = async (req, res) => {
   try {
-    console.log(' Iniciando reparación de categorías sin juego...');
-    
     const wowGame = await Game.findOne({ name: 'World of Warcraft' });
     
     if (!wowGame) {
@@ -184,18 +179,12 @@ const fixCategoriesGame = async (req, res) => {
         availableGames: allGames.map(g => ({ id: g._id, name: g.name }))
       });
     }
-    
-    console.log(` Juego encontrado: ${wowGame.name} (ID: ${wowGame._id})`);
-    
     const categoriesWithoutGame = await Category.find({
       $or: [
         { game: null },
         { game: { $exists: false } }
       ]
     });
-    
-    console.log(` Categorías sin juego: ${categoriesWithoutGame.length}`);
-    
     if (categoriesWithoutGame.length === 0) {
       const allCategories = await Category.find({}).populate('game', 'name');
       return res.json({
@@ -219,9 +208,6 @@ const fixCategoriesGame = async (req, res) => {
         $set: { game: wowGame._id }
       }
     );
-    
-    console.log(` Actualización completada: ${result.modifiedCount} categorías actualizadas`);
-    
     const updatedCategories = await Category.find({}).populate('game', 'name');
     
     res.json({
@@ -246,8 +232,6 @@ const fixCategoriesGame = async (req, res) => {
 
 const migrateRoles = async (req, res) => {
   try {
-    console.log(' Iniciando migración de roles...');
-    
     const roleMapping = {
       'Player': 'player',
       'GameMaster': 'gamemaster',
@@ -263,7 +247,6 @@ const migrateRoles = async (req, res) => {
       );
       
       if (result.modifiedCount > 0) {
-        console.log(` Migrados ${result.modifiedCount} usuarios de "${oldRole}" a "${newRole}"`);
         migratedCount += result.modifiedCount;
       }
     }
@@ -276,9 +259,6 @@ const migrateRoles = async (req, res) => {
         }
       }
     ]);
-    
-    console.log(' Distribución de roles después de la migración:', roleCounts);
-    
     res.json({
       success: true,
       message: `Migración completada: ${migratedCount} usuarios actualizados`,
@@ -324,8 +304,6 @@ const manageUserVip = async (req, res) => {
       await user.save();
 
       const unlockResult = await autoUnlockVipRewards(user._id);
-
-      console.log(`👑 VIP activado para ${user.username}: ${days} días (${monthsToAdd} meses), tier: ${user.vipTier}, meses acumulados: ${user.vipMonthsAccumulated}`);
       return res.json({
         message: `VIP activado para ${user.username} por ${days} días`,
         user: {
@@ -349,8 +327,6 @@ const manageUserVip = async (req, res) => {
       await user.save();
 
       const unlockResult = await autoUnlockVipRewards(user._id);
-
-      console.log(`👑 VIP vitalicio activado para ${user.username}, meses acumulados: ${user.vipMonthsAccumulated}`);
       return res.json({
         message: `VIP vitalicio activado para ${user.username}`,
         user: {
@@ -370,8 +346,6 @@ const manageUserVip = async (req, res) => {
       user.vipExpiresAt = null;
       user.vipTier = 'none';
       await user.save();
-
-      console.log(`❌ VIP desactivado para ${user.username}`);
       return res.json({
         message: `VIP desactivado para ${user.username}`,
         user: {

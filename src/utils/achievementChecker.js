@@ -113,8 +113,6 @@ async function checkAndGrantAchievements(userId, actionType = null) {
               points: achievement.points
             }
           });
-
-          console.log(`🏆 Usuario ${user.username} desbloqueó: ${achievement.name}`);
         }
       }
     }
@@ -214,8 +212,6 @@ async function checkSpecialAchievement(userId, specialType, data = {}) {
         points: achievement.points
       }
     });
-
-    console.log(`🏆 Usuario ${user.username} desbloqueó logro especial: ${achievement.name}`);
     return achievement;
   } catch (error) {
     console.error('Error al verificar logro especial:', error);

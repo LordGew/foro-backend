@@ -137,9 +137,6 @@ exports.purchaseShopItem = async (req, res) => {
       shopItem.stock -= 1;
     }
     await shopItem.save();
-    
-    console.log(`✅ Usuario ${user.username} compró ${shopItem.name} por ${shopItem.price} puntos`);
-    
     res.json({
       message: 'Compra realizada exitosamente',
       item: shopItem,

@@ -97,7 +97,6 @@ exports.createGame = async (req, res) => {
         order: 0
       });
       await generalCategory.save();
-      console.log(`✅ Categoría "General" creada automáticamente para el juego "${name}"`);
     } catch (categoryError) {
       console.error('⚠️ Error al crear categoría automática:', categoryError);
       // No fallar la creación del juego si falla la categoría

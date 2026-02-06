@@ -417,9 +417,6 @@ const sendRequest = async (req, res) => {
   try {
     const { targetId } = req.params;
     const senderId = req.user.userId;
-
-    console.log('Enviando solicitud:', { senderId, targetId });
-
     if (!mongoose.Types.ObjectId.isValid(targetId) || !mongoose.Types.ObjectId.isValid(senderId)) {
       return res.status(400).json({ message: 'IDs de usuario inválidos' });
     }
@@ -458,9 +455,6 @@ const acceptRequest = async (req, res) => {
   try {
     const requesterId = req.params.id;
     const receiverId = req.user.userId;
-
-    console.log('Aceptando solicitud:', { requesterId, receiverId });
-
     if (!mongoose.Types.ObjectId.isValid(requesterId) || !mongoose.Types.ObjectId.isValid(receiverId)) {
       return res.status(400).json({ message: 'IDs de usuario inválidos' });
     }
@@ -482,9 +476,6 @@ const acceptRequest = async (req, res) => {
 
     const ids = [requesterId, receiverId].map(id => id.toString()).sort();
     const chatId = `${ids[0]}-${ids[1]}`;
-
-    console.log('ChatId generado:', chatId);
-
     receiver.messageRequests.splice(requesterIndex, 1);
     receiver.contacts.push(requesterId);
     await receiver.save();
@@ -527,9 +518,6 @@ const rejectRequest = async (req, res) => {
   try {
     const requesterId = req.params.id;
     const receiverId = req.user.userId;
-
-    console.log('Rechazando solicitud:', { requesterId, receiverId });
-
     if (!mongoose.Types.ObjectId.isValid(requesterId) || !mongoose.Types.ObjectId.isValid(receiverId)) {
       return res.status(400).json({ message: 'IDs de usuario inválidos' });
     }
@@ -563,9 +551,6 @@ const unblockUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const unblockerId = req.user.userId;
-
-    console.log('Desbloqueando usuario:', { unblockerId, userId });
-
     if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(unblockerId)) {
       return res.status(400).json({ message: 'IDs inválidos' });
     }

@@ -206,8 +206,6 @@ exports.deleteBadge = async (req, res) => {
 // ADMIN: Regenerar badges con Twemoji iconUrl
 exports.seedBadges = async (req, res) => {
   try {
-    console.log('🔄 INICIANDO REGENERACIÓN DE BADGES...');
-    
     // URLs de Twemoji (Twitter Emoji) - CDN público y libre
     const twemojiBase = 'https://cdn.jsdelivr.net/gh/jdecked/twemoji@latest/assets/svg/';
     
@@ -260,12 +258,8 @@ exports.seedBadges = async (req, res) => {
     
     // Limpiar badges existentes
     const deletedBadges = await Badge.deleteMany({});
-    console.log(`🗑️ ${deletedBadges.deletedCount} badges eliminados`);
-    
     // Crear nuevos badges con iconUrl
     const createdBadges = await Badge.insertMany(badgesData);
-    console.log(`✅ ${createdBadges.length} badges creados exitosamente`);
-    
     res.json({
       message: 'Badges regenerados completamente con Twemoji iconUrl',
       count: createdBadges.length,
