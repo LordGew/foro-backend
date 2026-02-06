@@ -17,7 +17,8 @@ const {
   deleteMessage,
   editMessage,
   unblockUser,
-  getBlockedUsers
+  getBlockedUsers,
+  deleteChat
 } = require('../controllers/messageController');
 const authMiddleware = require('../middlewares/authMiddleware');
 // REMOVIDO: csrfProtection = require('csurf'); // Para mutantes
@@ -45,6 +46,7 @@ router.put('/chat/:chatId/read', authMiddleware, markAsRead);  // REMOVIDO: csrf
 router.put('/chat/:chatId/:messageId', authMiddleware, editMessage);  // REMOVIDO: csrfProtection
 
 // ===== RUTAS DE ELIMINACIÓN (DELETE) =====
+router.delete('/chat/:chatId', authMiddleware, deleteChat);  // Eliminar chat completo
 router.delete('/chat/:chatId/:messageId', authMiddleware, deleteMessage);  // REMOVIDO: csrfProtection
 
 module.exports = router;

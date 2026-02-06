@@ -596,6 +596,28 @@ const unblockUser = async (req, res) => {
 };
 
 
+// Delete Chat (eliminar todos los mensajes de un chat para el usuario)
+const deleteChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user.userId;
+
+    // Validar formato del chatId
+    const [user1, user2] = chatId.split('-');
+    if (!user1 || !user2 || ![user1, user2].includes(userId)) {
+      return res.status(400).json({ message: 'Formato de chatId inválido o usuario no autorizado' });
+    }
+
+    // Eliminar todos los mensajes del chat
+    await Message.deleteMany({ chatId });
+
+    res.json({ message: 'Chat eliminado correctamente' });
+  } catch (err) {
+    console.error('Error deleting chat:', err);
+    res.status(500).json({ message: 'Error al eliminar chat', error: err.message });
+  }
+};
+
 // Get Blocked Users
 const getBlockedUsers = async (req, res) => {
   try {
@@ -629,5 +651,6 @@ module.exports = {
   acceptRequest,
   rejectRequest,
   unblockUser,
-  getBlockedUsers
+  getBlockedUsers,
+  deleteChat
 };
