@@ -243,8 +243,8 @@ reportSchema.methods.dismiss = function(adminId, notes = null) {
 // Métodos estáticos
 reportSchema.statics.getPendingReports = function(page = 1, limit = 20) {
   return this.find({ status: 'pending' })
-    .populate('reporter', 'username name avatar')
-    .populate('reviewedBy', 'username name')
+    .populate('reporter', 'username profileImage')
+    .populate('reviewedBy', 'username profileImage')
     .sort({ priority: -1, createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit);
@@ -252,8 +252,8 @@ reportSchema.statics.getPendingReports = function(page = 1, limit = 20) {
 
 reportSchema.statics.getReportsByTarget = function(targetType, targetId) {
   return this.find({ targetType, targetId })
-    .populate('reporter', 'username name avatar')
-    .populate('reviewedBy', 'username name')
+    .populate('reporter', 'username profileImage')
+    .populate('reviewedBy', 'username profileImage')
     .sort({ createdAt: -1 });
 };
 

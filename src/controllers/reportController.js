@@ -97,7 +97,7 @@ class ReportController {
       }
       
       // No reportarse a sí mismo
-      if (targetType === 'user' && targetId === req.user._id.toString()) {
+      if (targetType === 'user' && targetId === req.user.userId.toString()) {
         return res.status(400).json({
           success: false,
           message: 'No puedes reportarte a ti mismo'
@@ -106,7 +106,7 @@ class ReportController {
       
       // Verificar si ya existe un reporte pendiente del mismo usuario
       const existingReport = await Report.findOne({
-        reporter: req.user._id,
+        reporter: req.user.userId,
         targetType,
         targetId,
         status: { $in: ['pending', 'under_review'] }
@@ -121,7 +121,7 @@ class ReportController {
       
       // Crear reporte
       const report = new Report({
-        reporter: req.user._id,
+        reporter: req.user.userId,
         targetType,
         targetId,
         category,
@@ -137,7 +137,7 @@ class ReportController {
       }
       
       await report.save();
-      await report.populate('reporter', 'username name avatar');
+      await report.populate('reporter', 'username profileImage');
       
       // Notificar a administradores vía Socket.IO
       if (global.io) {
@@ -252,7 +252,7 @@ class ReportController {
       const limit = parseInt(req.query.limit) || 20;
       const status = req.query.status;
       
-      const query = { reporter: req.user._id };
+      const query = { reporter: req.user.userId };
       if (status) {
         query.status = status;
       }
@@ -287,7 +287,7 @@ class ReportController {
   // Obtener reportes pendientes (solo admin/moderator)
   async getPendingReports(req, res) {
     try {
-      if (!['admin', 'moderator'].includes(req.user.role)) {
+      if (!['admin', 'moderator', 'Admin', 'GameMaster'].includes(req.user.role)) {
         return res.status(403).json({
           success: false,
           message: 'No tienes permisos para ver reportes pendientes'
@@ -304,8 +304,8 @@ class ReportController {
       if (category) query.category = category;
       
       const reports = await Report.find(query)
-        .populate('reporter', 'username name avatar')
-        .populate('reviewedBy', 'username name')
+        .populate('reporter', 'username profileImage')
+        .populate('reviewedBy', 'username profileImage')
         .sort({ priority: -1, createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit);
@@ -319,25 +319,25 @@ class ReportController {
         try {
           switch (report.targetType) {
             case 'user':
-              targetInfo = await User.findById(report.targetId, 'username name avatar role');
+              targetInfo = await User.findById(report.targetId, 'username profileImage role');
               break;
             case 'message':
               targetInfo = await ChatMessage.findById(report.targetId)
-                .populate('sender', 'username name avatar')
+                .populate('sender', 'username profileImage')
                 .populate('chatRoom');
               break;
             case 'post':
               targetInfo = await Post.findById(report.targetId)
-                .populate('author', 'username name avatar');
+                .populate('author', 'username profileImage');
               break;
             case 'comment':
               targetInfo = await Comment.findById(report.targetId)
-                .populate('author', 'username name avatar')
+                .populate('author', 'username profileImage')
                 .populate('post');
               break;
             case 'chatRoom':
               targetInfo = await ChatRoom.findById(report.targetId)
-                .populate('participants.user', 'username name avatar');
+                .populate('participants.user', 'username profileImage');
               break;
           }
         } catch (e) {
@@ -375,9 +375,9 @@ class ReportController {
       const { reportId } = req.params;
       
       const report = await Report.findById(reportId)
-        .populate('reporter', 'username name avatar email')
-        .populate('reviewedBy', 'username name email')
-        .populate('actionsTaken.appliedBy', 'username name');
+        .populate('reporter', 'username profileImage email')
+        .populate('reviewedBy', 'username profileImage email')
+        .populate('actionsTaken.appliedBy', 'username profileImage');
       
       if (!report) {
         return res.status(404).json({
@@ -387,8 +387,8 @@ class ReportController {
       }
       
       // Verificar permisos
-      const canView = report.reporter._id.toString() === req.user._id.toString() || 
-                     ['admin', 'moderator'].includes(req.user.role);
+      const canView = report.reporter._id.toString() === req.user.userId.toString() || 
+                     ['admin', 'moderator', 'Admin', 'GameMaster'].includes(req.user.role);
       
       if (!canView) {
         return res.status(403).json({
@@ -402,27 +402,25 @@ class ReportController {
       try {
         switch (report.targetType) {
           case 'user':
-            targetInfo = await User.findById(report.targetId, 'username name avatar email role');
+            targetInfo = await User.findById(report.targetId, 'username profileImage email role');
             break;
           case 'message':
             targetInfo = await ChatMessage.findById(report.targetId)
-              .populate('sender', 'username name avatar email')
-              .populate('receiver', 'username name avatar')
+              .populate('sender', 'username profileImage email')
               .populate('chatRoom');
             break;
           case 'post':
             targetInfo = await Post.findById(report.targetId)
-              .populate('author', 'username name avatar email')
-              .populate('comments');
+              .populate('author', 'username profileImage email');
             break;
           case 'comment':
             targetInfo = await Comment.findById(report.targetId)
-              .populate('author', 'username name avatar email')
+              .populate('author', 'username profileImage email')
               .populate('post');
             break;
           case 'chatRoom':
             targetInfo = await ChatRoom.findById(report.targetId)
-              .populate('participants.user', 'username name avatar email')
+              .populate('participants.user', 'username profileImage email')
               .populate('createdBy');
             break;
         }
@@ -436,7 +434,7 @@ class ReportController {
         targetType: report.targetType,
         targetId: report.targetId,
         status: { $ne: 'dismissed' }
-      }).populate('reporter', 'username name');
+      }).populate('reporter', 'username profileImage');
       
       res.json({
         success: true,
@@ -458,7 +456,7 @@ class ReportController {
   // Revisar reporte (solo admin/moderator)
   async reviewReport(req, res) {
     try {
-      if (!['admin', 'moderator'].includes(req.user.role)) {
+      if (!['admin', 'moderator', 'Admin', 'GameMaster'].includes(req.user.role)) {
         return res.status(403).json({
           success: false,
           message: 'No tienes permisos para revisar reportes'
@@ -492,14 +490,14 @@ class ReportController {
       
       // Actualizar estado
       report.status = status;
-      report.reviewedBy = req.user._id;
+      report.reviewedBy = req.user.userId;
       report.reviewedAt = new Date();
       if (reviewNotes) report.reviewNotes = reviewNotes;
       
       // Aplicar acciones si las hay
       if (actions.length > 0) {
         for (const action of actions) {
-          await this.applyModerationAction(report, action, req.user._id);
+          await this.applyModerationAction(report, action, req.user.userId);
         }
       }
       
@@ -694,7 +692,7 @@ class ReportController {
   // Obtener estadísticas de reportes
   async getReportStats(req, res) {
     try {
-      if (!['admin', 'moderator'].includes(req.user.role)) {
+      if (!['admin', 'moderator', 'Admin', 'GameMaster'].includes(req.user.role)) {
         return res.status(403).json({
           success: false,
           message: 'No tienes permisos para ver estadísticas'
@@ -744,7 +742,7 @@ class ReportController {
   // Escalar reporte
   async escalateReport(req, res) {
     try {
-      if (!['admin', 'moderator'].includes(req.user.role)) {
+      if (!['admin', 'moderator', 'Admin', 'GameMaster'].includes(req.user.role)) {
         return res.status(403).json({
           success: false,
           message: 'No tienes permisos para escalar reportes'

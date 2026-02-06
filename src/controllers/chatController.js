@@ -122,7 +122,7 @@ class ChatController {
         });
         
         await chatRoom.save();
-        await chatRoom.populate('participants.user', 'username name avatar role');
+        await chatRoom.populate('participants.user', 'username profileImage role');
       }
       
       res.json({
@@ -163,7 +163,7 @@ class ChatController {
         chatRoom: chatId,
         isDeleted: false
       })
-      .populate('sender', 'username name avatar role')
+      .populate('sender', 'username profileImage role')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
@@ -261,7 +261,7 @@ class ChatController {
       });
       
       await message.save();
-      await message.populate('sender', 'username name avatar role');
+      await message.populate('sender', 'username profileImage role');
       
       // Emitir mensaje vía Socket.IO
       if (global.io) {
@@ -346,7 +346,7 @@ class ChatController {
         });
         
         await message.save();
-        await message.populate('sender', 'username name avatar role');
+        await message.populate('sender', 'username profileImage role');
         
         // Emitir mensaje vía Socket.IO
         if (global.io) {

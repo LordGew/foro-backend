@@ -128,7 +128,7 @@ chatRoomSchema.statics.findPrivateChat = function(user1Id, user2Id) {
     type: 'private',
     'participants.user': { $all: [user1Id, user2Id] },
     isActive: true
-  }).populate('participants.user', 'username name avatar');
+  }).populate('participants.user', 'username profileImage role');
 };
 
 chatRoomSchema.statics.getUserChats = function(userId, page = 1, limit = 20) {
@@ -137,7 +137,7 @@ chatRoomSchema.statics.getUserChats = function(userId, page = 1, limit = 20) {
     isActive: true,
     isArchived: false
   })
-  .populate('participants.user', 'username name avatar role')
+  .populate('participants.user', 'username profileImage role')
   .populate('lastMessage')
   .sort({ lastActivity: -1 })
   .skip((page - 1) * limit)
