@@ -919,6 +919,43 @@ class ChatController {
       });
     }
   }
+  // Eliminar chat completo
+  async deleteChat(req, res) {
+    try {
+      const { chatId } = req.params;
+
+      // Verificar que el usuario es participante del chat
+      const chatRoom = await ChatRoom.findOne({
+        _id: chatId,
+        'participants.user': req.user.userId
+      });
+
+      if (!chatRoom) {
+        return res.status(404).json({
+          success: false,
+          message: 'Chat no encontrado o no tienes acceso'
+        });
+      }
+
+      // Eliminar todos los mensajes del chat
+      await ChatMessage.deleteMany({ chatRoom: chatId });
+
+      // Desactivar el chat
+      chatRoom.isActive = false;
+      await chatRoom.save();
+
+      res.json({
+        success: true,
+        message: 'Chat eliminado correctamente'
+      });
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al eliminar el chat'
+      });
+    }
+  }
 }
 
 module.exports = new ChatController();

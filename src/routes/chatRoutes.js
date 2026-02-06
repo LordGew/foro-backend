@@ -19,6 +19,7 @@ router.put('/messages/:messageId', chatController.editMessage);
 router.delete('/messages/:messageId', chatController.deleteMessage);
 router.post('/messages/:messageId/report', chatController.reportMessage);
 router.post('/chats/:chatId/read', chatController.markAsRead);
+router.delete('/chats/:chatId', chatController.deleteChat);
 
 // Rutas de moderación
 router.post('/chats/:chatId/mute/:userId', chatController.muteUser);
