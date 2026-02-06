@@ -17,6 +17,10 @@ router.post('/repair', authMiddleware, referralController.repairUserRewards);
 // Debug: Listar todas las recompensas (incluyendo inactivas)
 router.get('/debug/all-rewards', authMiddleware, referralController.debugGetAllRewards);
 
+// Mini tienda VIP
+router.get('/vip-shop', authMiddleware, referralController.getVipShopItems);
+router.post('/vip-shop/:rewardId/claim', authMiddleware, referralController.claimVipShopItem);
+
 // Admin: Forzar seed de recompensas
 router.post('/admin/seed', authMiddleware, rbacMiddleware(['Admin']), referralController.seedRewards);
 

@@ -205,6 +205,9 @@ exports.getRewards = async (req, res) => {
       filter.type = type;
     }
     
+    // Ocultar items VIP (cost=0) de la tienda pública
+    filter.cost = { $gt: 0 };
+    
     const rewards = await RewardItem.find(filter).sort({ cost: 1, rarity: 1 });
     
     res.json(rewards);
@@ -236,6 +239,104 @@ exports.debugGetAllRewards = async (req, res) => {
   } catch (err) {
     console.error('Error getting all rewards:', err);
     res.status(500).json({ message: 'Error al obtener recompensas', error: err.message });
+  }
+};
+
+// Obtener items de la mini tienda VIP (solo items con cost=0)
+exports.getVipShopItems = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    // Verificar que sea VIP, Admin o Gamemaster
+    const isVip = user.vip === true;
+    const isAdmin = user.role === 'Admin';
+    const isGamemaster = user.role === 'Gamemaster';
+    
+    if (!isVip && !isAdmin && !isGamemaster) {
+      return res.status(403).json({ message: 'Necesitas ser VIP para acceder a la tienda VIP' });
+    }
+    
+    // Obtener items VIP (cost=0)
+    const vipItems = await RewardItem.find({ isActive: true, cost: 0 }).sort({ type: 1, rarity: -1 });
+    
+    // Marcar cuáles ya posee el usuario
+    const ownedIds = user.ownedRewards.map(r => r.rewardId.toString());
+    const itemsWithOwnership = vipItems.map(item => ({
+      ...item.toObject(),
+      isOwned: ownedIds.includes(item._id.toString())
+    }));
+    
+    // Agrupar por tipo
+    const grouped = {
+      themes: itemsWithOwnership.filter(i => i.type === 'theme'),
+      frames: itemsWithOwnership.filter(i => i.type === 'frame'),
+      titles: itemsWithOwnership.filter(i => i.type === 'title'),
+      emojis: itemsWithOwnership.filter(i => i.type === 'emoji')
+    };
+    
+    res.json(grouped);
+  } catch (err) {
+    console.error('Error getting VIP shop items:', err);
+    res.status(500).json({ message: 'Error al obtener items VIP', error: err.message });
+  }
+};
+
+// Reclamar item VIP gratis (solo VIP/Admin/GM)
+exports.claimVipShopItem = async (req, res) => {
+  try {
+    const { rewardId } = req.params;
+    const userId = req.user.userId;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    // Verificar que sea VIP, Admin o Gamemaster
+    const isVip = user.vip === true;
+    const isAdmin = user.role === 'Admin';
+    const isGamemaster = user.role === 'Gamemaster';
+    
+    if (!isVip && !isAdmin && !isGamemaster) {
+      return res.status(403).json({ message: 'Necesitas ser VIP para reclamar items de la tienda VIP' });
+    }
+    
+    const reward = await RewardItem.findById(rewardId);
+    if (!reward || !reward.isActive) {
+      return res.status(404).json({ message: 'Item no encontrado o no disponible' });
+    }
+    
+    // Verificar que sea un item VIP (cost=0)
+    if (reward.cost > 0) {
+      return res.status(400).json({ message: 'Este item no es gratuito para VIP' });
+    }
+    
+    // Verificar si ya lo tiene
+    const alreadyOwned = user.ownedRewards.some(r => r.rewardId.toString() === rewardId);
+    if (alreadyOwned) {
+      return res.status(400).json({ message: 'Ya posees este item' });
+    }
+    
+    // Agregar a ownedRewards (sin descontar puntos)
+    user.ownedRewards.push({
+      rewardId: reward._id,
+      purchasedAt: new Date()
+    });
+    
+    await user.save();
+    
+    res.json({
+      message: '¡Item VIP reclamado exitosamente!',
+      reward: reward
+    });
+  } catch (err) {
+    console.error('Error claiming VIP shop item:', err);
+    res.status(500).json({ message: 'Error al reclamar item VIP', error: err.message });
   }
 };
 
