@@ -43,6 +43,7 @@ if (process.env.STRIPE_SECRET_KEY) {
 // Importar modelos y middlewares
 const User = require('./src/models/User');
 const authMiddleware = require('./src/middlewares/authMiddleware');
+const trackActivity = require('./src/middlewares/activityMiddleware');
 
 // Inicializar app
 const app = express();
@@ -287,6 +288,9 @@ const {
 // Aplicar middleware de cookies a todas las rutas
 app.use(cookieMiddleware);
 app.use(cookieMessageMiddleware);
+
+// Track user activity for real online counting
+app.use('/api', trackActivity);
 
 app.use('/api/users', userRoutes);
 app.use('/api/categories', categoryRoutes);

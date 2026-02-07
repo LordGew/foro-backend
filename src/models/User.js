@@ -128,6 +128,10 @@ const UserSchema = new mongoose.Schema({
     type: Date, 
     default: Date.now 
   },
+  lastActivity: {
+    type: Date,
+    default: null
+  },
   vip: { 
     type: Boolean, 
     default: false 
@@ -495,5 +499,6 @@ UserSchema.index({ isBanned: 1 });
 UserSchema.index({ isSuspended: 1 });
 UserSchema.index({ bannedUntil: 1 });
 UserSchema.index({ suspendedUntil: 1 });
+UserSchema.index({ lastActivity: -1 });
 
 module.exports = mongoose.model('User', UserSchema);

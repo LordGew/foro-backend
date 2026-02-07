@@ -75,12 +75,16 @@ const getUsersCount = async (req, res) => {
 };
 
 // Estadísticas de usuarios (público)
-// Devuelve el usuario más reciente y el más antiguo registrado
+// Devuelve el usuario más reciente, el más antiguo, y el conteo real de usuarios online
 const getUsersStats = async (req, res) => {
   try {
-    const newestUser = await User.findOne().sort({ createdAt: -1 }).select('_id username createdAt');
-    const oldestUser = await User.findOne().sort({ createdAt: 1 }).select('_id username createdAt');
-    res.json({ newestUser, oldestUser });
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const [newestUser, oldestUser, onlineCount] = await Promise.all([
+      User.findOne().sort({ createdAt: -1 }).select('_id username createdAt'),
+      User.findOne().sort({ createdAt: 1 }).select('_id username createdAt'),
+      User.countDocuments({ lastActivity: { $gte: fiveMinutesAgo } })
+    ]);
+    res.json({ newestUser, oldestUser, onlineCount });
   } catch (err) {
     console.error('Error al obtener estadísticas de usuarios:', err);
     res.status(500).json({ message: 'Error interno del servidor', error: err.message });
