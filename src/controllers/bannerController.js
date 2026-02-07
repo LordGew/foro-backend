@@ -211,6 +211,40 @@ const setRemaining = async (req, res) => {
   }
 };
 
+// Actualizar configuración de texto del banner
+const updateTextConfig = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      text, text_position, text_color, text_font_size,
+      text_font_weight, text_background_color, text_opacity,
+      text_padding, text_border_radius
+    } = req.body;
+
+    const updateData = {};
+    if (text !== undefined) updateData.text = text;
+    if (text_position !== undefined) updateData.text_position = text_position;
+    if (text_color !== undefined) updateData.text_color = text_color;
+    if (text_font_size !== undefined) updateData.text_font_size = text_font_size;
+    if (text_font_weight !== undefined) updateData.text_font_weight = text_font_weight;
+    if (text_background_color !== undefined) updateData.text_background_color = text_background_color;
+    if (text_opacity !== undefined) updateData.text_opacity = text_opacity;
+    if (text_padding !== undefined) updateData.text_padding = text_padding;
+    if (text_border_radius !== undefined) updateData.text_border_radius = text_border_radius;
+
+    const banner = await Banner.findByIdAndUpdate(id, updateData, { new: true });
+
+    if (!banner) {
+      return res.status(404).json({ message: 'Banner no encontrado' });
+    }
+
+    res.json(banner);
+  } catch (error) {
+    console.error('Error actualizando texto del banner:', error);
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+  }
+};
+
 module.exports = {
   createBanner,
   getBanners,
@@ -219,5 +253,6 @@ module.exports = {
   reorderBanners,
   recordView,
   setDuration,
-  setRemaining
+  setRemaining,
+  updateTextConfig
 };

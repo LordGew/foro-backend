@@ -4,7 +4,7 @@ const router = express.Router();
 
 const {
   createBanner, getBanners, updateBanner, deleteBanner,
-  reorderBanners, recordView, setDuration, setRemaining
+  reorderBanners, recordView, setDuration, setRemaining, updateTextConfig
 } = require('../controllers/bannerController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const rbacMiddleware = require('../middlewares/rbacMiddleware');
@@ -23,6 +23,9 @@ router.post('/:id/view', recordView); // Corregido el nombre del endpoint
 // Setear duración y remaining (admin)
 router.put('/:id/duration', authMiddleware, rbacMiddleware('Admin'), setDuration);
 router.put('/:id/remaining', authMiddleware, rbacMiddleware('Admin'), setRemaining);
+
+// Actualizar texto del banner (admin)
+router.put('/:id/text', authMiddleware, rbacMiddleware('Admin'), updateTextConfig);
 
 // Actualizar banner (admin)
 router.put('/:id', authMiddleware, rbacMiddleware('Admin'), upload, updateBanner);
