@@ -213,20 +213,47 @@ const getPosts = async (req, res) => {
 
 const updatePost = async (req, res) => {
   try {
+    // Verificar que el post existe
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post no encontrado' });
+    }
+
+    // Verificar que el usuario es el autor o un admin
+    const isAuthor = post.author.toString() === req.user.userId;
+    const isAdmin = req.user.role === 'Admin';
+    const isGM = req.user.role === 'GameMaster';
+    if (!isAuthor && !isAdmin && !isGM) {
+      return res.status(403).json({ message: 'No tienes permiso para editar este post' });
+    }
+
     const { title, content, category } = req.body;
     const updates = {};
     
-    if (title) updates.title = title;
+    if (title) {
+      updates.title = title;
+      // Regenerar slug si el título cambia
+      let newSlug = slugify(title, { lower: true, strict: true });
+      if (newSlug !== post.slug) {
+        let existing = await Post.findOne({ slug: newSlug, _id: { $ne: post._id } });
+        let counter = 1;
+        while (existing) {
+          newSlug = `${slugify(title, { lower: true, strict: true })}-${counter}`;
+          existing = await Post.findOne({ slug: newSlug, _id: { $ne: post._id } });
+          counter++;
+        }
+        updates.slug = newSlug;
+      }
+    }
     if (content) updates.content = sanitizeContent(content);
     if (category) updates.category = category;
     
     // Manejar la imagen si existe
     if (req.file) {
-      updates.images = [req.file.path];  // Use req.file.path for the Cloudinary URL
+      updates.images = [req.file.path];
       
       // Eliminar imagen anterior de Cloudinary si existe
-      const post = await Post.findById(req.params.id);
-      if (post && post.images && post.images.length > 0) {
+      if (post.images && post.images.length > 0) {
         const oldUrl = post.images[0];
         const publicId = getPublicIdFromUrl(oldUrl);
         if (publicId) {
@@ -234,21 +261,21 @@ const updatePost = async (req, res) => {
         }
       }
     }
+
+    // Marcar como editado
+    updates.editedAt = new Date();
     
-    const post = await Post.findByIdAndUpdate(
+    const updatedPost = await Post.findByIdAndUpdate(
       req.params.id, 
       updates, 
       { 
         new: true,
         runValidators: true
       }
-    );
+    ).populate('author', 'username profileImage _id role vip')
+     .populate('category', 'name');
     
-    if (!post) {
-      return res.status(404).json({ message: 'Post no encontrado' });
-    }
-    
-    res.json(post);
+    res.json(updatedPost);
   } catch (err) {
     console.error('Error al actualizar post:', err);
     

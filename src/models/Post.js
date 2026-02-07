@@ -12,7 +12,8 @@ const PostSchema = new mongoose.Schema({
   replies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Reply' }],
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  slug: { type: String, unique: true }
+  slug: { type: String, unique: true },
+  editedAt: { type: Date, default: null }
 }, { timestamps: true });
 
 // Index para search
